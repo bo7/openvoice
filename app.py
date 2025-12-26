@@ -15,6 +15,7 @@ CHATTERBOX_URL = "http://mac2ol:8767"
 
 # Chatterbox Presets
 CHATTERBOX_PRESETS = {
+    "clone": {"exaggeration": 0.3, "cfg_weight": 0.8, "temperature": 0.4, "label": "Klon-Treue"},
     "neutral": {"exaggeration": 0.5, "cfg_weight": 0.5, "temperature": 0.8, "label": "Neutral"},
     "calm": {"exaggeration": 0.2, "cfg_weight": 0.7, "temperature": 0.5, "label": "Ruhig"},
     "expressive": {"exaggeration": 0.8, "cfg_weight": 0.4, "temperature": 0.9, "label": "Expressiv"},

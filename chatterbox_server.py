@@ -46,6 +46,15 @@ class TTSRequest(BaseModel):
     exaggeration: float = 0.5
     cfg_weight: float = 0.5
     temperature: float = 0.8
+    
+    def validate_params(self):
+        """Validiere Parameter um NaN/Inf Fehler zu vermeiden"""
+        # Temperature darf nicht 0 sein (crasht)
+        self.temperature = max(0.05, min(2.0, self.temperature))
+        # Exaggeration sollte nicht negativ sein
+        self.exaggeration = max(0.0, min(2.0, self.exaggeration))
+        # CFG weight zwischen 0 und 1
+        self.cfg_weight = max(0.0, min(1.0, self.cfg_weight))
 
 
 def split_text(text: str, max_chars: int = MAX_CHARS) -> list[str]:
@@ -150,6 +159,9 @@ async def clone_voice(audio: UploadFile = File(...), name: str = Form(...)):
 async def text_to_speech(request: TTSRequest):
     if model is None:
         raise HTTPException(503, "Model not loaded")
+    
+    # Parameter validieren
+    request.validate_params()
     
     voice_path = VOICES_DIR / f"{request.voice}.wav"
     if not voice_path.exists():
