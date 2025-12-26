@@ -1,0 +1,7 @@
+# Flask Web Interface
+flask>=3.0.0
+requests>=2.31.0
+
+# Fuer die Server separat installieren:
+# XTTS: pip install TTS fastapi uvicorn librosa soundfile python-multipart
+# Chatterbox: pip install chatterbox-tts fastapi uvicorn soundfile python-multipart

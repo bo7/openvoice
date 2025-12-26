@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Clone</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px; margin: 0 auto; padding: 20px;
+            background: #1a1a2e; color: #eee;
+        }
+        h1 { color: #00d4ff; }
+        .nav { margin-bottom: 20px; }
+        .nav a { color: #00d4ff; margin-right: 20px; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        
+        .error { background: #ff4444; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .success { background: #44ff44; color: black; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        
+        form { background: #16213e; padding: 20px; border-radius: 10px; }
+        label { display: block; margin-top: 15px; color: #aaa; font-size: 14px; }
+        input[type="text"], input[type="file"], select { 
+            width: 100%; padding: 12px;
+            background: #0f3460; border: 1px solid #00d4ff; border-radius: 5px;
+            color: #fff; font-size: 16px;
+        }
+        
+        .engine-switch {
+            display: flex; gap: 10px; margin-top: 15px;
+        }
+        .engine-btn {
+            flex: 1; padding: 12px; border: 2px solid #00d4ff; border-radius: 5px;
+            background: transparent; color: #00d4ff; cursor: pointer;
+            font-size: 14px; font-weight: bold; transition: all 0.3s;
+        }
+        .engine-btn.active { background: #00d4ff; color: #1a1a2e; }
+        .engine-btn:hover { background: #00d4ff33; }
+        
+        button[type="submit"] {
+            width: 100%; padding: 15px; margin-top: 20px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none; border-radius: 5px; color: white;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+        }
+        button[type="submit"]:hover { transform: scale(1.02); }
+        
+        .voices-section { margin-top: 30px; }
+        .voices-section h2 { color: #00d4ff; font-size: 18px; }
+        .voice-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .voice-tag { 
+            background: #0f3460; padding: 8px 15px; border-radius: 20px;
+            font-size: 14px;
+        }
+        .voice-tag.xtts { border: 1px solid #00d4ff; }
+        .voice-tag.chatterbox { border: 1px solid #ff6b6b; }
+        .engine-label { font-size: 10px; opacity: 0.7; }
+        
+        .info { font-size: 12px; color: #888; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Voice Clone</h1>
+    <div class="nav">
+        <a href="/">Home</a>
+        <a href="/voiceClone">Voice Clone</a>
+        <a href="/talk">Talk</a>
+    </div>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="success">{{ success }}</div>
+    {% endif %}
+    
+    <form method="POST" enctype="multipart/form-data">
+        <label for="name">Stimmen-Name</label>
+        <input type="text" name="name" id="name" placeholder="z.B. sven" required>
+        
+        <label for="audio">Audio-Datei</label>
+        <input type="file" name="audio" id="audio" accept="audio/*" required>
+        <div class="info">XTTS: 10-30 Sekunden empfohlen | Chatterbox: 6+ Sekunden</div>
+        
+        <label>Engine</label>
+        <div class="engine-switch">
+            <button type="button" class="engine-btn active" onclick="setEngine('xtts', this)">XTTS</button>
+            <button type="button" class="engine-btn" onclick="setEngine('chatterbox', this)">Chatterbox</button>
+        </div>
+        <input type="hidden" name="engine" id="engine" value="xtts">
+        
+        <button type="submit">Stimme klonen</button>
+    </form>
+    
+    <div class="voices-section">
+        <h2>Vorhandene Stimmen</h2>
+        <div class="voice-list">
+            {% for v in xtts_voices %}
+            <span class="voice-tag xtts">{{ v }} <span class="engine-label">XTTS</span></span>
+            {% endfor %}
+            {% for v in chatterbox_voices %}
+            <span class="voice-tag chatterbox">{{ v }} <span class="engine-label">CB</span></span>
+            {% endfor %}
+            {% if not xtts_voices and not chatterbox_voices %}
+            <span style="color: #666;">Keine Stimmen vorhanden</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        function setEngine(engine, btn) {
+            document.getElementById('engine').value = engine;
+            document.querySelectorAll('.engine-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+    </script>
+</body>
+</html>
