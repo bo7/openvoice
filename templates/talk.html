@@ -1,60 +1,85 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TTS - OpenVoice</title>
+    <title>TTS - OpenVoice Hub</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
         h1 { color: #00d4ff; }
         a { color: #00d4ff; }
         .nav { margin-bottom: 20px; }
         .nav a { margin-right: 15px; }
         
         .engine-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .engine-tab { padding: 10px 20px; border: 2px solid #333; background: #252540; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .engine-tab { padding: 12px 20px; border: 2px solid #333; background: #252540; border-radius: 8px; cursor: pointer; transition: all 0.2s; min-width: 140px; }
         .engine-tab:hover { border-color: #00d4ff; }
         .engine-tab.active { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
-        .engine-tab small { display: block; font-size: 0.7em; opacity: 0.8; }
+        .engine-tab .name { font-weight: bold; display: block; }
+        .engine-tab .desc { font-size: 0.75em; opacity: 0.8; }
+        .engine-tab .features { font-size: 0.65em; margin-top: 4px; }
+        .engine-tab .features span { background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 3px; margin-right: 4px; }
         
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #aaa; }
-        textarea { width: 100%; height: 120px; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; font-size: 16px; resize: vertical; }
-        select, input[type="range"] { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; }
+        label { display: block; margin-bottom: 5px; color: #aaa; font-size: 0.9em; }
+        textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; font-size: 16px; resize: vertical; }
+        select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; }
         
         .row { display: flex; gap: 15px; flex-wrap: wrap; }
         .col { flex: 1; min-width: 200px; }
+        .col-2 { flex: 2; }
         
-        .params { background: #252540; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: none; }
-        .params.visible { display: block; }
-        .params h4 { margin-top: 0; color: #00d4ff; }
+        .params-panel { background: #252540; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: none; }
+        .params-panel.visible { display: block; }
+        .params-panel h3 { margin-top: 0; color: #00d4ff; font-size: 1em; border-bottom: 1px solid #333; padding-bottom: 10px; }
         
-        .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .slider-row label { width: 120px; margin: 0; }
-        .slider-row input { flex: 1; }
-        .slider-row span { width: 50px; text-align: right; }
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .preset-btn { padding: 10px; border: 2px solid #333; background: #1a1a2e; border-radius: 6px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .preset-btn:hover { border-color: #00d4ff; }
+        .preset-btn.active { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .preset-btn .label { font-weight: bold; display: block; color: #fff; font-size: 0.9em; }
+        .preset-btn .desc { font-size: 0.7em; color: #888; }
         
-        button { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        button:hover { background: #00b8e6; }
-        button:disabled { background: #555; cursor: not-allowed; }
+        .slider-group { margin-bottom: 12px; }
+        .slider-row { display: flex; align-items: center; gap: 10px; }
+        .slider-row label { width: 100px; margin: 0; font-size: 0.85em; }
+        .slider-row input[type="range"] { flex: 1; }
+        .slider-row .value { width: 45px; text-align: right; font-family: monospace; color: #00d4ff; }
+        
+        .emotion-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+        .emotion-btn { padding: 8px; border: 1px solid #333; background: #1a1a2e; border-radius: 4px; cursor: pointer; font-size: 0.85em; text-align: center; }
+        .emotion-btn:hover { border-color: #00d4ff; }
+        .emotion-btn.active { border-color: #00d4ff; background: rgba(0,212,255,0.15); color: #00d4ff; }
+        
+        .voice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; }
+        .voice-btn { padding: 8px 12px; border: 1px solid #333; background: #1a1a2e; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        .voice-btn:hover { border-color: #00d4ff; }
+        .voice-btn.active { border-color: #00d4ff; background: rgba(0,212,255,0.15); }
+        
+        button[type="submit"] { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 40px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        button[type="submit"]:hover { background: #00b8e6; }
+        button[type="submit"]:disabled { background: #555; cursor: not-allowed; }
         
         .error { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .success { background: #44ff44; color: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         
-        audio { width: 100%; margin-top: 15px; }
-        .audio-box { background: #252540; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .audio-result { background: #252540; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .audio-result h3 { margin-top: 0; color: #00d4ff; }
+        audio { width: 100%; margin-top: 10px; }
         
-        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #555; }
         .status-dot.online { background: #44ff44; }
         .status-dot.offline { background: #ff4444; }
+        
+        .tip { background: rgba(0,212,255,0.1); border-left: 3px solid #00d4ff; padding: 10px 15px; margin: 15px 0; font-size: 0.85em; }
+        .tip strong { color: #00d4ff; }
     </style>
 </head>
 <body>
     <div class="nav">
         <a href="/">Home</a>
-        <a href="/talk">Sprechen</a>
-        <a href="/voiceClone">Stimme klonen</a>
+        <a href="/talk">Speak</a>
+        <a href="/clone">Clone Voice</a>
     </div>
     
     <h1>Text-to-Speech</h1>
@@ -64,120 +89,198 @@
     {% endif %}
     
     <form method="POST" id="ttsForm">
-        <!-- Engine Tabs -->
+        <!-- Engine Selection -->
         <div class="engine-tabs">
             {% for key, srv in servers.items() %}
-            <div class="engine-tab {% if selected_engine == key or (not selected_engine and key == 'xtts') %}active{% endif %}" 
+            <div class="engine-tab {% if selected_engine == key or (not selected_engine and key == 'kokoro') %}active{% endif %}" 
                  data-engine="{{ key }}" onclick="selectEngine('{{ key }}')">
                 <span id="status-{{ key }}" class="status-dot"></span>
-                <strong>{{ srv.name }}</strong>
-                <small>{{ srv.desc }}</small>
+                <span class="name">{{ srv.name }}</span>
+                <span class="desc">{{ srv.desc }}</span>
+                <div class="features">
+                    {% if srv.supports_cloning %}<span>Clone</span>{% endif %}
+                    {% if srv.supports_emotions %}<span>Emotions</span>{% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
-        <input type="hidden" name="engine" id="engineInput" value="{{ selected_engine or 'xtts' }}">
+        <input type="hidden" name="engine" id="engineInput" value="{{ selected_engine or 'kokoro' }}">
         
+        <!-- Text Input -->
         <div class="form-group">
-            <label>Text</label>
-            <textarea name="text" placeholder="Text eingeben...">{{ text or '' }}</textarea>
+            <label>Text to speak</label>
+            <textarea name="text" placeholder="Enter text here...">{{ text or '' }}</textarea>
         </div>
         
+        <!-- Basic Options Row -->
         <div class="row">
             <div class="col">
                 <div class="form-group">
-                    <label>Stimme</label>
-                    <select name="voice" id="voiceSelect">
-                        {% for engine, voice_list in voices.items() %}
-                        <optgroup label="{{ servers[engine].name }}" data-engine="{{ engine }}">
-                            {% for v in voice_list %}
-                            <option value="{{ v }}" {% if selected_voice == v %}selected{% endif %}>{{ v }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endfor %}
+                    <label>Language</label>
+                    <select name="language" id="languageSelect">
+                        <option value="en" {% if selected_language == 'en' %}selected{% endif %}>English</option>
+                        <option value="de" {% if selected_language == 'de' %}selected{% endif %}>German</option>
+                        <option value="fr" {% if selected_language == 'fr' %}selected{% endif %}>French</option>
+                        <option value="es" {% if selected_language == 'es' %}selected{% endif %}>Spanish</option>
+                        <option value="it" {% if selected_language == 'it' %}selected{% endif %}>Italian</option>
+                        <option value="pt" {% if selected_language == 'pt' %}selected{% endif %}>Portuguese</option>
+                        <option value="zh" {% if selected_language == 'zh' %}selected{% endif %}>Chinese</option>
+                        <option value="ja" {% if selected_language == 'ja' %}selected{% endif %}>Japanese</option>
+                        <option value="ko" {% if selected_language == 'ko' %}selected{% endif %}>Korean</option>
+                        <option value="ru" {% if selected_language == 'ru' %}selected{% endif %}>Russian</option>
                     </select>
                 </div>
             </div>
             <div class="col">
                 <div class="form-group">
-                    <label>Sprache</label>
-                    <select name="language">
-                        {% for code, name in languages.items() %}
-                        <option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
+                    <label>Speed</label>
+                    <div class="slider-row">
+                        <input type="range" name="speed" id="speedSlider" min="0.5" max="2" step="0.1" value="{{ speed or 1.0 }}" oninput="updateValue('speed')">
+                        <span class="value" id="speed-val">{{ speed or 1.0 }}</span>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Chatterbox Params -->
-        <div class="params" id="chatterbox-params">
-            <h4>Chatterbox Parameter</h4>
+        <!-- Kokoro Panel -->
+        <div class="params-panel" id="kokoro-panel">
+            <h3>Kokoro Voice Selection</h3>
+            <p class="tip"><strong>Tip:</strong> Kokoro is fastest. No cloning - choose from 11 high-quality preset voices.</p>
+            <input type="hidden" name="voice" id="voiceInput" value="{{ selected_voice or 'af_heart' }}">
+            <div class="voice-grid">
+                {% for vid, vname in kokoro_voices.items() %}
+                <div class="voice-btn {% if selected_voice == vid or (not selected_voice and vid == 'af_heart') %}active{% endif %}" 
+                     data-voice="{{ vid }}" onclick="selectVoice('{{ vid }}')">
+                    {{ vname }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- XTTS Panel -->
+        <div class="params-panel" id="xtts-panel">
+            <h3>XTTS Voice Cloning</h3>
+            <p class="tip"><strong>Tip:</strong> XTTS supports 16 languages. Use <a href="/clone">Clone Voice</a> to add your own voice first.</p>
             <div class="form-group">
-                <label>Preset</label>
-                <select name="preset" id="presetSelect" onchange="applyPreset()">
-                    {% for key, p in presets.items() %}
-                    <option value="{{ key }}" {% if selected_preset == key %}selected{% endif %}>{{ p.label }}</option>
+                <label>Cloned Voice</label>
+                <select name="xtts_voice" id="xttsVoiceSelect">
+                    {% for v in voices.get('xtts', []) %}
+                    <option value="{{ v }}">{{ v }}</option>
                     {% endfor %}
-                    <option value="custom">Custom</option>
                 </select>
             </div>
-            <div class="slider-row">
-                <label>Exaggeration</label>
-                <input type="range" name="exaggeration" id="exaggeration" min="0" max="2" step="0.1" value="{{ exaggeration or 0.5 }}" oninput="updateSlider(this)">
-                <span id="exaggeration-val">{{ exaggeration or 0.5 }}</span>
-            </div>
-            <div class="slider-row">
-                <label>CFG Weight</label>
-                <input type="range" name="cfg_weight" id="cfg_weight" min="0" max="1" step="0.1" value="{{ cfg_weight or 0.5 }}" oninput="updateSlider(this)">
-                <span id="cfg_weight-val">{{ cfg_weight or 0.5 }}</span>
-            </div>
-            <div class="slider-row">
-                <label>Temperature</label>
-                <input type="range" name="temperature" id="temperature" min="0.1" max="1.5" step="0.1" value="{{ temperature or 0.8 }}" oninput="updateSlider(this)">
-                <span id="temperature-val">{{ temperature or 0.8 }}</span>
-            </div>
         </div>
         
-        <!-- MLX Params -->
-        <div class="params" id="mlx-params">
-            <h4>MLX-Audio Parameter</h4>
-            <div class="row">
-                <div class="col">
-                    <div class="form-group">
-                        <label>Modell</label>
-                        <select name="mlx_model">
-                            {% for key, name in mlx_models.items() %}
-                            <option value="{{ key }}" {% if selected_mlx_model == key %}selected{% endif %}>{{ name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+        <!-- Chatterbox Panel -->
+        <div class="params-panel" id="chatterbox-panel">
+            <h3>Chatterbox Settings</h3>
+            <p class="tip"><strong>Best Clone:</strong> Use "Best Clone" preset for maximum fidelity to the original voice.</p>
+            
+            <label style="margin-bottom: 10px;">Preset</label>
+            <input type="hidden" name="preset" id="presetInput" value="{{ selected_preset or 'best_clone' }}">
+            <div class="preset-grid">
+                {% for key, p in chatterbox_presets.items() %}
+                <div class="preset-btn {% if selected_preset == key or (not selected_preset and key == 'best_clone') %}active{% endif %}" 
+                     data-preset="{{ key }}" onclick="selectPreset('{{ key }}')">
+                    <span class="label">{{ p.label }}</span>
+                    <span class="desc">{{ p.description }}</span>
                 </div>
-                <div class="col">
+                {% endfor %}
+                <div class="preset-btn {% if selected_preset == 'custom' %}active{% endif %}" 
+                     data-preset="custom" onclick="selectPreset('custom')">
+                    <span class="label">Custom</span>
+                    <span class="desc">Manual adjustment</span>
+                </div>
+            </div>
+            
+            <div id="chatterbox-sliders" style="margin-top: 15px;">
+                <div class="slider-group">
                     <div class="slider-row">
-                        <label>Speed</label>
-                        <input type="range" name="speed" min="0.5" max="2" step="0.1" value="{{ speed or 1.0 }}" oninput="updateSlider(this)">
-                        <span id="speed-val">{{ speed or 1.0 }}</span>
+                        <label>Exaggeration</label>
+                        <input type="range" name="exaggeration" id="exaggeration" min="0" max="2" step="0.05" value="{{ exaggeration or 0.15 }}" oninput="updateValue('exaggeration')">
+                        <span class="value" id="exaggeration-val">{{ exaggeration or 0.15 }}</span>
+                    </div>
+                </div>
+                <div class="slider-group">
+                    <div class="slider-row">
+                        <label>CFG Weight</label>
+                        <input type="range" name="cfg_weight" id="cfg_weight" min="0" max="1" step="0.05" value="{{ cfg_weight or 0.9 }}" oninput="updateValue('cfg_weight')">
+                        <span class="value" id="cfg_weight-val">{{ cfg_weight or 0.9 }}</span>
+                    </div>
+                </div>
+                <div class="slider-group">
+                    <div class="slider-row">
+                        <label>Temperature</label>
+                        <input type="range" name="temperature" id="temperature" min="0.1" max="1.5" step="0.05" value="{{ temperature or 0.3 }}" oninput="updateValue('temperature')">
+                        <span class="value" id="temperature-val">{{ temperature or 0.3 }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Cloned Voice (optional)</label>
+                <select name="chatterbox_voice" id="chatterboxVoiceSelect">
+                    <option value="">Default</option>
+                    {% for v in voices.get('chatterbox', []) %}
+                    <option value="{{ v }}">{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <!-- OpenAudio Panel -->
+        <div class="params-panel" id="openaudio-panel">
+            <h3>OpenAudio S1 Settings</h3>
+            <p class="tip"><strong>Emotions:</strong> Select an emotion to add expressive speech. Supports 50+ emotions!</p>
+            
+            <label>Emotion (optional)</label>
+            <input type="hidden" name="emotion" id="emotionInput" value="{{ selected_emotion or '' }}">
+            <div class="emotion-grid">
+                <div class="emotion-btn {% if not selected_emotion %}active{% endif %}" data-emotion="" onclick="selectEmotion('')">None</div>
+                {% for emo in openaudio_emotions %}
+                {% if emo %}
+                <div class="emotion-btn {% if selected_emotion == emo %}active{% endif %}" data-emotion="{{ emo }}" onclick="selectEmotion('{{ emo }}')">{{ emo }}</div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label>Generation Preset</label>
+                <input type="hidden" name="oa_preset" id="oaPresetInput" value="best_clone">
+                <div class="preset-grid">
+                    {% for key, p in openaudio_presets.items() %}
+                    <div class="preset-btn {% if key == 'best_clone' %}active{% endif %}" data-oapreset="{{ key }}" onclick="selectOAPreset('{{ key }}')">
+                        <span class="label">{{ p.label }}</span>
+                        <span class="desc">{{ p.description }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <div class="slider-group">
+                    <div class="slider-row">
+                        <label>Temperature</label>
+                        <input type="range" name="oa_temperature" id="oa_temperature" min="0.1" max="1.0" step="0.05" value="{{ oa_temperature or 0.3 }}" oninput="updateValue('oa_temperature')">
+                        <span class="value" id="oa_temperature-val">{{ oa_temperature or 0.3 }}</span>
+                    </div>
+                </div>
+                <div class="slider-group">
+                    <div class="slider-row">
+                        <label>Top P</label>
+                        <input type="range" name="top_p" id="top_p" min="0.5" max="1.0" step="0.05" value="{{ top_p or 0.7 }}" oninput="updateValue('top_p')">
+                        <span class="value" id="top_p-val">{{ top_p or 0.7 }}</span>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Fish Params -->
-        <div class="params" id="fish-params">
-            <h4>Fish Speech Parameter</h4>
-            <div class="slider-row">
-                <label>Temperature</label>
-                <input type="range" name="fish_temp" min="0.1" max="1.5" step="0.1" value="0.7" oninput="updateSlider(this)">
-                <span id="fish_temp-val">0.7</span>
-            </div>
-        </div>
-        
-        <button type="submit" id="submitBtn">Generieren</button>
+        <button type="submit">Generate Speech</button>
     </form>
     
     {% if audio %}
-    <div class="audio-box">
-        <h3>Generiertes Audio</h3>
+    <div class="audio-result">
+        <h3>Generated Audio</h3>
         <audio controls autoplay>
             <source src="data:audio/wav;base64,{{ audio }}" type="audio/wav">
         </audio>
@@ -185,53 +288,70 @@
     {% endif %}
     
     <script>
-        const presets = {{ presets | tojson | safe }};
+        const chatterboxPresets = {{ chatterbox_presets | tojson | safe }};
+        const openaudioPresets = {{ openaudio_presets | tojson | safe }};
         
         function selectEngine(engine) {
             document.querySelectorAll('.engine-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`[data-engine="${engine}"]`).classList.add('active');
             document.getElementById('engineInput').value = engine;
             
-            // Show/hide params
-            document.querySelectorAll('.params').forEach(p => p.classList.remove('visible'));
-            const params = document.getElementById(engine + '-params');
-            if (params) params.classList.add('visible');
+            // Hide all panels
+            document.querySelectorAll('.params-panel').forEach(p => p.classList.remove('visible'));
             
-            // Filter voices
-            filterVoices(engine);
+            // Show relevant panel
+            const panel = document.getElementById(engine + '-panel');
+            if (panel) panel.classList.add('visible');
         }
         
-        function filterVoices(engine) {
-            const select = document.getElementById('voiceSelect');
-            const groups = select.querySelectorAll('optgroup');
-            groups.forEach(g => {
-                g.style.display = g.dataset.engine === engine ? '' : 'none';
-            });
-            // Select first visible option
-            const visibleGroup = select.querySelector(`optgroup[data-engine="${engine}"]`);
-            if (visibleGroup && visibleGroup.querySelector('option')) {
-                visibleGroup.querySelector('option').selected = true;
+        function selectVoice(voice) {
+            document.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-voice="${voice}"]`).classList.add('active');
+            document.getElementById('voiceInput').value = voice;
+        }
+        
+        function selectPreset(preset) {
+            document.querySelectorAll('#chatterbox-panel .preset-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-preset="${preset}"]`).classList.add('active');
+            document.getElementById('presetInput').value = preset;
+            
+            if (preset !== 'custom' && chatterboxPresets[preset]) {
+                const p = chatterboxPresets[preset];
+                document.getElementById('exaggeration').value = p.exaggeration;
+                document.getElementById('cfg_weight').value = p.cfg_weight;
+                document.getElementById('temperature').value = p.temperature;
+                updateValue('exaggeration');
+                updateValue('cfg_weight');
+                updateValue('temperature');
             }
         }
         
-        function applyPreset() {
-            const preset = document.getElementById('presetSelect').value;
-            if (preset !== 'custom' && presets[preset]) {
-                document.getElementById('exaggeration').value = presets[preset].exaggeration;
-                document.getElementById('cfg_weight').value = presets[preset].cfg_weight;
-                document.getElementById('temperature').value = presets[preset].temperature;
-                updateSlider(document.getElementById('exaggeration'));
-                updateSlider(document.getElementById('cfg_weight'));
-                updateSlider(document.getElementById('temperature'));
+        function selectOAPreset(preset) {
+            document.querySelectorAll('[data-oapreset]').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-oapreset="${preset}"]`).classList.add('active');
+            document.getElementById('oaPresetInput').value = preset;
+            
+            if (openaudioPresets[preset]) {
+                const p = openaudioPresets[preset];
+                document.getElementById('oa_temperature').value = p.temperature;
+                document.getElementById('top_p').value = p.top_p;
+                updateValue('oa_temperature');
+                updateValue('top_p');
             }
         }
         
-        function updateSlider(el) {
-            const span = document.getElementById(el.name + '-val');
-            if (span) span.textContent = el.value;
+        function selectEmotion(emotion) {
+            document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-emotion="${emotion}"]`).classList.add('active');
+            document.getElementById('emotionInput').value = emotion;
         }
         
-        // Check server status
+        function updateValue(id) {
+            const el = document.getElementById(id);
+            const val = document.getElementById(id + '-val');
+            if (el && val) val.textContent = el.value;
+        }
+        
         async function checkStatus() {
             try {
                 const r = await fetch('/api/health');
@@ -246,9 +366,8 @@
             } catch (e) {}
         }
         
-        // Init
         document.addEventListener('DOMContentLoaded', () => {
-            const engine = document.getElementById('engineInput').value;
+            const engine = document.getElementById('engineInput').value || 'kokoro';
             selectEngine(engine);
             checkStatus();
             setInterval(checkStatus, 30000);

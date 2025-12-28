@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stimme klonen - OpenVoice</title>
+    <title>Clone Voice - OpenVoice Hub</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
@@ -12,43 +12,56 @@
         .nav { margin-bottom: 20px; }
         .nav a { margin-right: 15px; }
         
-        .engine-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .engine-tab { padding: 10px 20px; border: 2px solid #333; background: #252540; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-        .engine-tab:hover { border-color: #00d4ff; }
-        .engine-tab.active { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
-        .engine-tab small { display: block; font-size: 0.7em; opacity: 0.8; }
+        .tip { background: rgba(0,212,255,0.1); border-left: 3px solid #00d4ff; padding: 15px; margin: 20px 0; }
+        .tip h4 { margin: 0 0 10px 0; color: #00d4ff; }
+        .tip ul { margin: 0; padding-left: 20px; color: #aaa; }
+        .tip li { margin: 5px 0; }
         
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #aaa; }
-        input[type="text"], input[type="file"] { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #aaa; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; font-size: 16px; }
         
-        button { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        button:hover { background: #00b8e6; }
+        .file-upload { border: 2px dashed #333; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; background: #252540; }
+        .file-upload:hover { border-color: #00d4ff; }
+        .file-upload.dragover { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .file-upload input { display: none; }
+        .file-upload .icon { font-size: 3em; margin-bottom: 10px; }
+        .file-upload .text { color: #888; }
+        .file-upload .filename { color: #00d4ff; margin-top: 10px; font-weight: bold; }
         
-        .error { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
-        .success { background: #44ff44; color: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .engine-select { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+        .engine-option { padding: 15px; border: 2px solid #333; background: #252540; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .engine-option:hover { border-color: #00d4ff; }
+        .engine-option.active { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .engine-option.disabled { opacity: 0.5; cursor: not-allowed; }
+        .engine-option .name { font-weight: bold; display: block; margin-bottom: 5px; }
+        .engine-option .desc { font-size: 0.8em; color: #888; }
+        .engine-option .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #555; }
+        .engine-option .status-dot.online { background: #44ff44; }
+        .engine-option .status-dot.offline { background: #ff4444; }
         
-        .voices-list { background: #252540; padding: 15px; border-radius: 8px; margin-top: 20px; }
-        .voices-list h3 { margin-top: 0; color: #00d4ff; }
-        .voice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-        .voice-item { background: #1a1a2e; padding: 8px 12px; border-radius: 5px; text-align: center; }
+        button[type="submit"] { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 40px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; margin-top: 10px; }
+        button[type="submit"]:hover { background: #00b8e6; }
+        button[type="submit"]:disabled { background: #555; cursor: not-allowed; }
         
-        .tip { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #00d4ff; }
+        .error { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .success { background: #44ff44; color: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        
+        .existing-voices { margin-top: 40px; }
+        .existing-voices h3 { color: #00d4ff; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .voice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 15px; }
+        .voice-item { background: #252540; padding: 12px; border-radius: 6px; font-size: 0.9em; }
+        .voice-item .engine { font-size: 0.75em; color: #888; }
     </style>
 </head>
 <body>
     <div class="nav">
         <a href="/">Home</a>
-        <a href="/talk">Sprechen</a>
-        <a href="/voiceClone">Stimme klonen</a>
+        <a href="/talk">Speak</a>
+        <a href="/clone">Clone Voice</a>
     </div>
     
-    <h1>Stimme klonen</h1>
-    
-    <div class="tip">
-        <strong>Tipp:</strong> Lade eine saubere Audio-Aufnahme (5-30 Sekunden) hoch. 
-        Wenig Hintergrundgeraeusche und deutliche Sprache liefern die besten Ergebnisse.
-    </div>
+    <h1>Clone Voice</h1>
     
     {% if error %}
     <div class="error">{{ error }}</div>
@@ -58,54 +71,125 @@
     <div class="success">{{ success }}</div>
     {% endif %}
     
-    <form method="POST" enctype="multipart/form-data">
-        <!-- Engine Tabs -->
-        <div class="engine-tabs">
-            {% for key, srv in servers.items() %}
-            <div class="engine-tab {% if key == 'xtts' %}active{% endif %}" 
-                 data-engine="{{ key }}" onclick="selectEngine('{{ key }}')">
-                <strong>{{ srv.name }}</strong>
-                <small>{{ srv.desc }}</small>
+    <div class="tip">
+        <h4>Tips for Best Voice Cloning</h4>
+        <ul>
+            <li><strong>Duration:</strong> 10-30 seconds of clear speech</li>
+            <li><strong>Quality:</strong> Clean audio without background noise</li>
+            <li><strong>Content:</strong> Natural speaking, varied intonation</li>
+            <li><strong>Format:</strong> WAV or MP3, any sample rate</li>
+        </ul>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data" id="cloneForm">
+        <div class="form-group">
+            <label>Voice Name</label>
+            <input type="text" name="name" placeholder="e.g., my_voice" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Audio Sample</label>
+            <div class="file-upload" id="fileUpload">
+                <input type="file" name="audio" accept="audio/*" id="audioFile" required>
+                <div class="icon">🎤</div>
+                <div class="text">Click or drag audio file here</div>
+                <div class="filename" id="fileName"></div>
             </div>
-            {% endfor %}
-        </div>
-        <input type="hidden" name="engine" id="engineInput" value="xtts">
-        
-        <div class="form-group">
-            <label>Name der Stimme</label>
-            <input type="text" name="name" placeholder="z.B. meine_stimme" required pattern="[a-zA-Z0-9_-]+">
-            <small style="color:#666">Nur Buchstaben, Zahlen, Unterstriche und Bindestriche</small>
         </div>
         
         <div class="form-group">
-            <label>Audio-Datei</label>
-            <input type="file" name="audio" accept="audio/*" required>
-            <small style="color:#666">WAV, MP3, M4A, etc. (5-30 Sekunden empfohlen)</small>
+            <label>Clone Engine</label>
+            <input type="hidden" name="engine" id="engineInput" value="xtts">
+            <div class="engine-select">
+                {% for key, srv in servers.items() %}
+                {% if srv.supports_cloning %}
+                <div class="engine-option {% if key == 'xtts' %}active{% endif %}" data-engine="{{ key }}" onclick="selectEngine('{{ key }}')">
+                    <span id="status-{{ key }}" class="status-dot"></span>
+                    <span class="name">{{ srv.name }}</span>
+                    <span class="desc">{{ srv.desc }}</span>
+                </div>
+                {% else %}
+                <div class="engine-option disabled" title="Does not support cloning">
+                    <span class="name">{{ srv.name }}</span>
+                    <span class="desc">No cloning</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
         </div>
         
-        <button type="submit">Stimme klonen</button>
+        <button type="submit">Clone Voice</button>
     </form>
     
-    <div class="voices-list">
-        <h3>Vorhandene Stimmen</h3>
-        {% for engine, voice_list in voices.items() %}
-        {% if voice_list %}
-        <h4 style="color:#888; margin-bottom:10px;">{{ servers[engine].name }}</h4>
-        <div class="voice-grid" style="margin-bottom:20px;">
+    <div class="existing-voices">
+        <h3>Existing Cloned Voices</h3>
+        <div class="voice-list">
+            {% for engine, voice_list in voices.items() %}
             {% for v in voice_list %}
-            <div class="voice-item">{{ v }}</div>
+            <div class="voice-item">
+                {{ v }}
+                <div class="engine">{{ servers[engine].name if engine in servers else engine }}</div>
+            </div>
+            {% endfor %}
             {% endfor %}
         </div>
-        {% endif %}
-        {% endfor %}
     </div>
     
     <script>
+        const fileUpload = document.getElementById('fileUpload');
+        const audioFile = document.getElementById('audioFile');
+        const fileName = document.getElementById('fileName');
+        
+        fileUpload.addEventListener('click', () => audioFile.click());
+        
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+        
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+        
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                audioFile.files = e.dataTransfer.files;
+                updateFileName();
+            }
+        });
+        
+        audioFile.addEventListener('change', updateFileName);
+        
+        function updateFileName() {
+            if (audioFile.files.length) {
+                fileName.textContent = audioFile.files[0].name;
+            }
+        }
+        
         function selectEngine(engine) {
-            document.querySelectorAll('.engine-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.engine-option').forEach(e => e.classList.remove('active'));
             document.querySelector(`[data-engine="${engine}"]`).classList.add('active');
             document.getElementById('engineInput').value = engine;
         }
+        
+        async function checkStatus() {
+            try {
+                const r = await fetch('/api/health');
+                const data = await r.json();
+                for (const [engine, status] of Object.entries(data)) {
+                    const dot = document.getElementById('status-' + engine);
+                    if (dot) {
+                        dot.classList.remove('online', 'offline');
+                        dot.classList.add(status.status === 'ok' ? 'online' : 'offline');
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        checkStatus();
+        setInterval(checkStatus, 30000);
     </script>
 </body>
 </html>
