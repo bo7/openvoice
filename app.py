@@ -395,6 +395,7 @@ def voice_clone():
         name = request.form.get("name", "").strip()
         audio = request.files.get("audio")
         engine = request.form.get("engine", "xtts")
+        from_recording = request.form.get("from_recording", "false") == "true"
         
         if not name:
             return render_template("clone.html", error="Name required",
@@ -403,6 +404,50 @@ def voice_clone():
             return render_template("clone.html", error="Audio file required",
                                    voices=all_voices, servers=SERVERS)
         
+        # Read audio data once for potential multi-engine use
+        audio_data = audio.read()
+        audio_filename = audio.filename or f"{name}.wav"
+        audio_content_type = audio.content_type or "audio/wav"
+        
+        # Clone to all engines if requested
+        if engine == "all":
+            results = []
+            clone_engines = ["xtts", "chatterbox", "openaudio"]
+            
+            for eng in clone_engines:
+                server = SERVERS.get(eng)
+                if not server or not server.get("supports_cloning"):
+                    continue
+                
+                url = server["url"]
+                
+                try:
+                    if eng == "openaudio":
+                        # OpenAudio: save to references folder
+                        import io
+                        files = {"audio": (audio_filename, io.BytesIO(audio_data), audio_content_type)}
+                        data = {"name": name}
+                        # OpenAudio doesn't have /clone endpoint, save file via SSH or skip
+                        results.append(f"{server['name']}: Requires manual setup")
+                        continue
+                    else:
+                        import io
+                        files = {"audio": (audio_filename, io.BytesIO(audio_data), audio_content_type)}
+                        data = {"name": name}
+                        r = requests.post(f"{url}/clone", files=files, data=data, timeout=120)
+                        
+                        if r.status_code == 200:
+                            results.append(f"{server['name']}: OK")
+                        else:
+                            results.append(f"{server['name']}: Failed")
+                except Exception as e:
+                    results.append(f"{server['name']}: {str(e)[:50]}")
+            
+            return render_template("clone.html",
+                success=f"Voice '{name}' cloned! Results: " + ", ".join(results),
+                voices=get_all_voices(), servers=SERVERS)
+        
+        # Single engine clone
         server = SERVERS.get(engine, SERVERS["xtts"])
         if not server.get("supports_cloning"):
             return render_template("clone.html", 
@@ -410,7 +455,8 @@ def voice_clone():
                 voices=all_voices, servers=SERVERS)
         
         url = server["url"]
-        files = {"audio": (audio.filename, audio.stream, audio.content_type)}
+        import io
+        files = {"audio": (audio_filename, io.BytesIO(audio_data), audio_content_type)}
         data = {"name": name}
         
         try:
