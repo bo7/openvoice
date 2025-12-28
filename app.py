@@ -16,7 +16,7 @@ app = Flask(__name__)
 # Server Configuration
 SERVERS = {
     "xtts": {
-        "url": "http://mac2:8766",
+        "url": "http://10.200.0.12:8766",
         "name": "XTTS v2",
         "desc": "Voice cloning, 16 languages",
         "port": 8766,
@@ -25,7 +25,7 @@ SERVERS = {
         "languages": ["en", "de", "fr", "es", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh", "ja", "ko", "hu"]
     },
     "chatterbox": {
-        "url": "http://mac2:8767",
+        "url": "http://10.200.0.12:8767",
         "name": "Chatterbox",
         "desc": "Expressive emotional speech",
         "port": 8767,
@@ -34,7 +34,7 @@ SERVERS = {
         "languages": ["en"]
     },
     "kokoro": {
-        "url": "http://mac2:8769",
+        "url": "http://10.200.0.12:8769",
         "name": "Kokoro",
         "desc": "Fast, 11 preset voices",
         "port": 8769,
@@ -43,7 +43,7 @@ SERVERS = {
         "languages": ["en"]
     },
     "openaudio": {
-        "url": "http://mac2:8770",
+        "url": "http://10.200.0.12:8770",
         "name": "OpenAudio S1",
         "desc": "50+ emotions, 14 languages",
         "port": 8770,
@@ -249,8 +249,7 @@ def generate_tts_for_engine(engine, text, language, voice=None):
     try:
         if engine == "xtts":
             payload = {"text": clean_text, "language": language}
-            if voice:
-                payload["voice"] = voice
+            payload["voice"] = voice if voice else "sven"  # Default voice
             r = requests.post(f"{url}/tts", json=payload, timeout=120)
             
         elif engine == "chatterbox":
@@ -260,8 +259,7 @@ def generate_tts_for_engine(engine, text, language, voice=None):
                 "cfg_weight": settings.get("cfg_weight", 0.9),
                 "temperature": settings.get("temperature", 0.3)
             }
-            if voice:
-                payload["voice"] = voice
+            payload["voice"] = voice if voice else "sven"  # Default voice
             r = requests.post(f"{url}/tts", json=payload, timeout=180)
             
         elif engine == "kokoro":
@@ -279,8 +277,7 @@ def generate_tts_for_engine(engine, text, language, voice=None):
                 "temperature": settings.get("temperature", 0.3),
                 "top_p": settings.get("top_p", 0.7)
             }
-            if voice:
-                payload["reference_id"] = voice
+            payload["reference_id"] = voice if voice else "sven"  # Default voice
             r = requests.post(f"{url}/v1/tts", json=payload, timeout=180)
             
         else:
@@ -580,12 +577,16 @@ def api_voices():
 @app.route("/api/health")
 def api_health():
     status = {}
+    health_endpoints = {
+        "xtts": "/health",
+        "chatterbox": "/health",
+        "kokoro": "/",
+        "openaudio": "/v1/health"
+    }
     for engine, server in SERVERS.items():
         try:
-            if engine == "openaudio":
-                r = requests.get(f"{server['url']}/v1/health", timeout=3)
-            else:
-                r = requests.get(f"{server['url']}/health", timeout=3)
+            endpoint = health_endpoints.get(engine, "/health")
+            r = requests.get(f"{server['url']}{endpoint}", timeout=3)
             status[engine] = {"status": "ok"} if r.status_code == 200 else {"status": "error"}
         except:
             status[engine] = {"status": "offline"}
