@@ -1,308 +1,383 @@
-# OpenVoice
+# Mac2 TTS/STT Server Documentation
 
-Self-hosted Voice Cloning Server mit Web-Interface. Unterstuetzt zwei TTS-Engines:
-- **XTTS v2** (Coqui) - Schnell, gute Qualitaet
-- **Chatterbox** (Resemble AI) - MIT-Lizenz, Stimmvariationen
+Mac Studio M2 Ultra (192.168.2.147 / WireGuard: 10.200.0.12)
+512GB RAM, 96 GPU cores
 
-## Features
+## Server Overview
 
-- Voice Cloning mit kurzen Audio-Samples (6-30 Sekunden)
-- Web-Interface fuer einfache Bedienung
-- REST API fuer Integration
-- Chatterbox Stimmvariationen (Emotion, Tempo, Kreativitaet)
-- 23 Sprachen unterstuetzt
-- Optimiert fuer Apple Silicon (MPS) und CPU
+| Port | Server | Model | Engine | Use Case |
+|------|--------|-------|--------|----------|
+| 8765 | Speech Server | Whisper | STT | Speech-to-Text transcription |
+| 8766 | XTTS Server | XTTS v2 | CPU | Voice cloning, multilingual TTS |
+| 8767 | Chatterbox | Chatterbox | MPS | Expressive emotional TTS |
+| 8768 | MLX Server | Various | MLX | Apple Silicon optimized inference |
+| 8769 | Kokoro | Kokoro-82M | MLX | Fast, high-quality TTS (11 voices) |
+| 8770 | OpenAudio | S1-mini 0.5B | MPS | Emotional TTS, 50+ emotions, multilingual |
 
-## Architektur
+---
 
-```
-┌─────────────────┐     ┌──────────────────┐
-│   Flask Web UI  │────▶│  XTTS Server     │ :8766
-│     :5050       │     │  (schnell)       │
-│                 │────▶│                  │
-│                 │     ├──────────────────┤
-│                 │────▶│ Chatterbox Server│ :8767
-│                 │     │ (MIT, Variationen)│
-└─────────────────┘     └──────────────────┘
-```
+## 1. Speech Server (Whisper STT) - Port 8765
 
-## Installation
+**Location:** `~/speech-server/`
+**Purpose:** Speech-to-Text transcription
 
-### Voraussetzungen
-
-- Python 3.11
-- macOS 12+ (Apple Silicon) oder Linux mit CUDA
-- ~10 GB Speicherplatz fuer Modelle
-
-### 1. XTTS Server
+### Usage
 
 ```bash
-# Verzeichnis erstellen
-mkdir -p ~/xtts-server && cd ~/xtts-server
+# Transcribe audio file
+curl -X POST http://mac2:8765/transcribe \
+  -F "file=@audio.wav"
 
-# Virtual Environment
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# Dependencies
-pip install TTS fastapi uvicorn librosa soundfile python-multipart
-
-# Server starten
-python xtts_server.py
-# Laeuft auf http://localhost:8766
+# Transcribe with language hint
+curl -X POST http://mac2:8765/transcribe \
+  -F "file=@audio.wav" \
+  -F "language=en"
 ```
 
-### 2. Chatterbox Server
-
-```bash
-# Verzeichnis erstellen
-mkdir -p ~/chatterbox-server && cd ~/chatterbox-server
-
-# Virtual Environment
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# Dependencies
-pip install chatterbox-tts fastapi uvicorn soundfile python-multipart
-
-# Server starten
-python chatterbox_server.py
-# Laeuft auf http://localhost:8767
+### Response
+```json
+{
+  "text": "Transcribed text here",
+  "language": "en"
+}
 ```
 
-### 3. Flask Web-Interface
+---
+
+## 2. XTTS Server - Port 8766
+
+**Location:** `~/xtts-server/`
+**Purpose:** Voice cloning and multilingual text-to-speech
+
+### Usage
 
 ```bash
-# Verzeichnis erstellen
-mkdir -p ~/openvoice && cd ~/openvoice
-
-# Virtual Environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Dependencies
-pip install flask requests
-
-# Server URLs anpassen (falls noetig)
-# In app.py: XTTS_URL und CHATTERBOX_URL
-
-# Starten
-python app.py
-# Laeuft auf http://localhost:5050
-```
-
-## Verwendung
-
-### Web-Interface
-
-1. Oeffne http://localhost:5050
-2. **Voice Clone**: Audio hochladen, Name vergeben, Engine waehlen
-3. **Talk**: Text eingeben, Stimme und Engine waehlen, generieren
-
-### Chatterbox Stimmvariationen
-
-| Preset | Exaggeration | CFG Weight | Temperature | Effekt |
-|--------|--------------|------------|-------------|--------|
-| Neutral | 0.5 | 0.5 | 0.8 | Ausgeglichen |
-| Ruhig | 0.2 | 0.7 | 0.5 | Langsam, monoton |
-| Expressiv | 0.8 | 0.4 | 0.9 | Lebendig |
-| Dramatisch | 1.2 | 0.3 | 0.9 | Uebertrieben |
-| Monoton | 0.1 | 0.8 | 0.3 | Roboterhaft |
-| Energisch | 1.0 | 0.5 | 1.0 | Schnell, variabel |
-
-**Parameter:**
-- **Exaggeration** (0-2): Emotionale Intensitaet
-- **CFG Weight** (0-1): Wie streng die geklonte Stimme befolgt wird
-- **Temperature** (0-1): Kreativitaet/Variation
-
-### REST API
-
-#### Health Check
-```bash
-# Beide Engines
-curl http://localhost:5050/api/health
-
-# Einzelne Engine
-curl http://localhost:8766/health  # XTTS
-curl http://localhost:8767/health  # Chatterbox
-```
-
-#### Voice Cloning
-```bash
-# XTTS
-curl -X POST http://localhost:8766/clone \
-  -F "audio=@sample.wav" \
-  -F "name=meineStimme"
-
-# Chatterbox
-curl -X POST http://localhost:8767/clone \
-  -F "audio=@sample.wav" \
-  -F "name=meineStimme"
-```
-
-#### Text-to-Speech
-```bash
-# XTTS
-curl -X POST http://localhost:8766/tts \
+# Basic TTS (default voice)
+curl -X POST http://mac2:8766/tts \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hallo Welt", "voice": "meineStimme", "language": "de"}' \
-  -o output.wav
+  -d '{"text": "Hello world", "language": "en"}' \
+  --output speech.wav
 
-# Chatterbox mit Stimmvariation
-curl -X POST http://localhost:8767/tts \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "Hallo Welt",
-    "voice": "meineStimme",
-    "language": "de",
-    "exaggeration": 0.8,
-    "cfg_weight": 0.4,
-    "temperature": 0.9
-  }' \
-  -o output.wav
+# Voice cloning (provide reference audio)
+curl -X POST http://mac2:8766/tts \
+  -F "text=Hello world" \
+  -F "language=en" \
+  -F "speaker_wav=@reference_voice.wav" \
+  --output cloned_speech.wav
 ```
 
-#### Stimmen auflisten
+### Supported Languages
+`en`, `de`, `fr`, `es`, `it`, `pt`, `pl`, `tr`, `ru`, `nl`, `cs`, `ar`, `zh-cn`, `ja`, `ko`, `hu`
+
+---
+
+## 3. Chatterbox Server - Port 8767
+
+**Location:** `~/chatterbox-server/`
+**Purpose:** Expressive emotional speech synthesis
+
+### Usage
+
 ```bash
-curl http://localhost:8766/voices  # XTTS
-curl http://localhost:8767/voices  # Chatterbox
+# Basic TTS
+curl -X POST http://mac2:8767/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world"}' \
+  --output speech.wav
+
+# With exaggeration (0.0 - 1.0, higher = more expressive)
+curl -X POST http://mac2:8767/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "This is exciting!", "exaggeration": 0.7}' \
+  --output expressive.wav
+
+# Voice cloning
+curl -X POST http://mac2:8767/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello", "audio_prompt_path": "/path/to/reference.wav"}' \
+  --output cloned.wav
 ```
 
-## Systemd Services (Linux)
+---
 
-### XTTS Service
+## 4. MLX Server - Port 8768
 
-```ini
-# /etc/systemd/system/xtts.service
-[Unit]
-Description=XTTS Voice Server
-After=network.target
+**Location:** `~/mlx_server.py`
+**Purpose:** Apple Silicon optimized model inference
 
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/home/your_user/xtts-server
-Environment="PATH=/home/your_user/xtts-server/.venv/bin"
-ExecStart=/home/your_user/xtts-server/.venv/bin/python xtts_server.py
-Restart=always
+### Usage
 
-[Install]
-WantedBy=multi-user.target
+```bash
+# Check status
+curl http://mac2:8768/
+
+# Model-specific endpoints vary
+curl http://mac2:8768/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Your prompt here"}'
 ```
 
-### Chatterbox Service
+---
 
-```ini
-# /etc/systemd/system/chatterbox.service
-[Unit]
-Description=Chatterbox Voice Server
-After=network.target
+## 5. Kokoro Server - Port 8769
 
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/home/your_user/chatterbox-server
-Environment="PATH=/home/your_user/chatterbox-server/.venv/bin"
-ExecStart=/home/your_user/chatterbox-server/.venv/bin/python chatterbox_server.py
-Restart=always
+**Location:** `~/kokoro-server/`
+**Model:** Kokoro-82M (MLX-native, Apple Silicon optimized)
+**Purpose:** Fast, high-quality TTS with 11 preset voices
 
-[Install]
-WantedBy=multi-user.target
+### Available Voices
+
+| Voice ID | Description |
+|----------|-------------|
+| af_heart | Female, warm |
+| af_nova | Female |
+| af_bella | Female |
+| af_sarah | Female |
+| af_nicole | Female |
+| bf_emma | British female |
+| bf_isabella | British female |
+| am_adam | Male |
+| am_michael | Male |
+| bm_george | British male |
+| bm_lewis | British male |
+
+### Usage
+
+```bash
+# Check status and list voices
+curl http://mac2:8769/
+
+# List all voices
+curl http://mac2:8769/voices
+
+# Basic TTS (default voice: af_heart)
+curl -X POST http://mac2:8769/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world"}' \
+  --output speech.wav
+
+# TTS with specific voice
+curl -X POST http://mac2:8769/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "voice": "am_adam"}' \
+  --output speech.wav
+
+# TTS with speed adjustment (0.5 - 2.0)
+curl -X POST http://mac2:8769/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "voice": "af_bella", "speed": 1.2}' \
+  --output speech.wav
+
+# Save to specific path
+curl -X POST http://mac2:8769/tts/save \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "voice": "bm_george", "output_path": "/tmp/output.wav"}'
 ```
 
-## macOS LaunchAgent
+### Response Format
+Returns WAV audio file (mono, 24kHz)
 
-```xml
-<!-- ~/Library/LaunchAgents/com.openvoice.xtts.plist -->
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.openvoice.xtts</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/YOU/xtts-server/.venv/bin/python</string>
-        <string>/Users/YOU/xtts-server/xtts_server.py</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/YOU/xtts-server</string>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-</dict>
-</plist>
+---
+
+## 6. OpenAudio Server (S1-mini) - Port 8770
+
+**Location:** `~/fish-speech-repo/`
+**Model:** OpenAudio S1-mini (0.5B parameters)
+**Purpose:** State-of-the-art TTS with 50+ emotions, multilingual support
+
+### Features
+- 50+ emotional markers
+- 14 languages supported
+- Voice cloning from 10-30 second samples
+- RLHF-optimized for natural speech
+
+### Emotional Markers
+Use these in your text to control emotion:
+- `(angry)` - Angry tone
+- `(sad)` - Sad tone
+- `(excited)` - Excited tone
+- `(whisper)` - Whispered speech
+- `(laugh)` - Laughing
+- `(cry)` - Crying
+- `(sigh)` - Sighing
+- `(nervous)` - Nervous tone
+- `(fearful)` - Fearful tone
+- `(surprised)` - Surprised tone
+- `(cheerful)` - Cheerful tone
+- `(serious)` - Serious tone
+
+### Usage
+
+```bash
+# Health check
+curl http://mac2:8770/v1/health
+
+# Basic TTS
+curl -X POST http://mac2:8770/v1/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "format": "wav"}' \
+  --output speech.wav
+
+# TTS with emotion
+curl -X POST http://mac2:8770/v1/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "(excited) This is amazing news!", "format": "wav"}' \
+  --output excited.wav
+
+# TTS with whisper
+curl -X POST http://mac2:8770/v1/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "(whisper) This is a secret.", "format": "wav"}' \
+  --output whisper.wav
+
+# Voice cloning (requires reference audio in references/ folder)
+curl -X POST http://mac2:8770/v1/tts \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello world", "reference_id": "my_voice", "format": "wav"}' \
+  --output cloned.wav
 ```
 
-## Performance
+### Supported Languages
+English, Chinese, Japanese, Korean, French, German, Spanish, Portuguese, Italian, Russian, Arabic, Dutch, Polish, Thai
 
-| Engine | Device | Kurzer Text | Langer Text |
-|--------|--------|-------------|-------------|
-| XTTS | CPU (16 threads) | ~4s | ~15s |
-| Chatterbox | CPU | ~49s | ~60s |
-| Chatterbox | MPS (Apple Silicon) | ~18-28s | ~30s |
+### Output Formats
+- `wav` - WAV audio (default)
+- `mp3` - MP3 audio
+- `flac` - FLAC audio
 
-## Vergleich der Engines
+---
 
-| Eigenschaft | XTTS | Chatterbox |
-|-------------|------|------------|
-| Lizenz | Coqui Public (non-commercial) | MIT (commercial OK) |
-| Geschwindigkeit | Schneller | Langsamer |
-| Qualitaet | Sehr gut | Sehr gut, natuerlicher |
-| Voice Sample | 10-30s empfohlen | 6s+ reicht |
-| Stimmvariationen | Nein | Ja (Emotion, Tempo) |
-| Sprachen | 16 | 23 |
-| Paralinguistik | Nein | Ja ([laugh], [cough]) |
-| MPS Support | Nein (Conv1d Bug) | Ja (mit Workarounds) |
+## Quick Start Examples
 
-## Sprachen
+### Python Client Example
 
-**XTTS:** en, de, es, fr, it, pt, pl, tr, ru, nl, cs, ar, zh, ja, hu, ko
+```python
+import requests
 
-**Chatterbox:** ar, da, de, el, en, es, fi, fr, he, hi, it, ja, ko, ms, nl, no, pl, pt, ru, sv, sw, tr, zh
+# Kokoro TTS
+def kokoro_tts(text, voice="af_heart"):
+    response = requests.post(
+        "http://mac2:8769/tts",
+        json={"text": text, "voice": voice}
+    )
+    with open("output.wav", "wb") as f:
+        f.write(response.content)
 
-## Tipps
+# OpenAudio TTS with emotion
+def openaudio_tts(text, emotion=None):
+    if emotion:
+        text = f"({emotion}) {text}"
+    response = requests.post(
+        "http://mac2:8770/v1/tts",
+        json={"text": text, "format": "wav"}
+    )
+    with open("output.wav", "wb") as f:
+        f.write(response.content)
 
-### Voice Cloning
-- Verwende saubere Audio-Aufnahmen ohne Hintergrundgeraeusche
-- 10-30 Sekunden fuer beste Ergebnisse
-- Gleichmaessige Sprechgeschwindigkeit
-- Keine Musik oder andere Stimmen
+# Whisper STT
+def transcribe(audio_path):
+    with open(audio_path, "rb") as f:
+        response = requests.post(
+            "http://mac2:8765/transcribe",
+            files={"file": f}
+        )
+    return response.json()["text"]
 
-### Chatterbox Paralinguistik (nur Turbo-Modell)
+# Usage
+kokoro_tts("Hello from Kokoro!", voice="am_adam")
+openaudio_tts("This is exciting!", emotion="excited")
+text = transcribe("recording.wav")
 ```
-"Das ist ja [laugh] wirklich lustig!"
-"Hmm [cough] entschuldigung..."
-"Wow [chuckle] das haette ich nicht erwartet."
+
+---
+
+## Service Management
+
+### Start/Stop Services
+
+```bash
+# List all LaunchAgents
+launchctl list | grep etl-kontor
+
+# Start a service
+launchctl load ~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist
+
+# Stop a service
+launchctl unload ~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist
+
+# Check service status
+launchctl print gui/$(id -u)/com.etl-kontor.kokoro-server
 ```
+
+### LaunchAgent Locations
+- Kokoro: `~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist`
+- OpenAudio: `~/Library/LaunchAgents/com.etl-kontor.openaudio-server.plist`
+- XTTS: `~/Library/LaunchAgents/com.etl-kontor.xtts-server.plist`
+- Chatterbox: `~/Library/LaunchAgents/com.etl-kontor.chatterbox-server.plist`
+- Speech: `~/Library/LaunchAgents/com.etl-kontor.speech-server.plist`
+
+### Check Running Servers
+
+```bash
+# Check which ports are in use
+netstat -an | grep LISTEN | grep -E '876[5-9]|8770'
+
+# Check server processes
+ps aux | grep -E 'server.py|xtts|chatterbox|kokoro|api_server'
+```
+
+---
+
+## Network Access
+
+### From Local Network
+```
+http://192.168.2.147:PORT
+```
+
+### Via WireGuard VPN
+```
+http://10.200.0.12:PORT
+```
+
+### Via SSH Tunnel
+```bash
+ssh -L 8769:localhost:8769 mac2
+# Then access: http://localhost:8769
+```
+
+---
 
 ## Troubleshooting
 
-### MPS Fehler (Apple Silicon)
-```
-Output channels > 65536 not supported at the MPS device
-```
-Loesung: XTTS laeuft nur auf CPU. Chatterbox funktioniert mit MPS.
+### Server not responding
+1. Check if process is running: `ps aux | grep server`
+2. Check logs: `tail -f ~/SERVICE_NAME/server.log`
+3. Restart service: `launchctl unload ... && launchctl load ...`
 
-### Modell-Download haengt
-Die Modelle werden beim ersten Start von HuggingFace heruntergeladen:
-- XTTS: ~1.9 GB
-- Chatterbox: ~3 GB
+### Out of memory
+1. Check memory usage: `top -l 1 | head -20`
+2. Stop unused servers to free memory
+3. XTTS uses ~8GB, OpenAudio uses ~2GB, Kokoro uses ~500MB
 
-### Port bereits belegt
-```bash
-lsof -i :5050  # Prozess finden
-kill -9 PID    # Prozess beenden
-```
+### Audio quality issues
+- Increase sample rate if supported
+- For voice cloning, use clean 10-30 second reference audio
+- Avoid background noise in reference samples
 
-## Lizenz
+---
 
-- **XTTS v2**: Coqui Public Model License (non-commercial)
-- **Chatterbox**: MIT License
-- **Dieses Projekt**: MIT License
+## Model Comparison
 
-## Credits
+| Model | Speed | Quality | Voice Cloning | Emotions | Languages |
+|-------|-------|---------|---------------|----------|-----------|
+| Kokoro | Very Fast | High | No | No | EN only |
+| XTTS | Slow | High | Yes | Limited | 16 |
+| Chatterbox | Medium | High | Yes | Yes | EN |
+| OpenAudio | Medium | Excellent | Yes | 50+ | 14 |
 
-- [Coqui TTS](https://github.com/coqui-ai/TTS) - XTTS v2 Model
-- [Resemble AI](https://github.com/resemble-ai/chatterbox) - Chatterbox TTS
+**Recommendations:**
+- **Fast responses:** Kokoro (8769)
+- **Voice cloning:** XTTS (8766) or OpenAudio (8770)
+- **Emotional speech:** OpenAudio (8770) or Chatterbox (8767)
+- **Multilingual:** XTTS (8766) or OpenAudio (8770)

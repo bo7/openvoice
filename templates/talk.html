@@ -3,191 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text to Speech</title>
+    <title>TTS - OpenVoice</title>
     <style>
         * { box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 900px; margin: 0 auto; padding: 20px;
-            background: #1a1a2e; color: #eee;
-        }
-        h1 { color: #00d4ff; margin-bottom: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #00d4ff; }
+        a { color: #00d4ff; }
         .nav { margin-bottom: 20px; }
-        .nav a { color: #00d4ff; margin-right: 20px; text-decoration: none; }
-        .nav a:hover { text-decoration: underline; }
+        .nav a { margin-right: 15px; }
         
-        .error { background: #ff4444; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .engine-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .engine-tab { padding: 10px 20px; border: 2px solid #333; background: #252540; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .engine-tab:hover { border-color: #00d4ff; }
+        .engine-tab.active { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
+        .engine-tab small { display: block; font-size: 0.7em; opacity: 0.8; }
         
-        form { background: #16213e; padding: 20px; border-radius: 10px; }
-        label { display: block; margin-top: 15px; color: #aaa; font-size: 14px; }
-        
-        textarea { 
-            width: 100%; height: 120px; padding: 12px;
-            background: #0f3460; border: 1px solid #00d4ff; border-radius: 5px;
-            color: #fff; font-size: 16px; resize: vertical;
-        }
-        select, input[type="range"] { 
-            width: 100%; padding: 10px;
-            background: #0f3460; border: 1px solid #00d4ff; border-radius: 5px;
-            color: #fff; font-size: 14px;
-        }
-        input[type="range"] { padding: 5px 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #aaa; }
+        textarea { width: 100%; height: 120px; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; font-size: 16px; resize: vertical; }
+        select, input[type="range"] { width: 100%; padding: 10px; border: 1px solid #333; border-radius: 8px; background: #252540; color: #eee; }
         
         .row { display: flex; gap: 15px; flex-wrap: wrap; }
-        .col { flex: 1; min-width: 150px; }
+        .col { flex: 1; min-width: 200px; }
         
-        .engine-switch {
-            display: flex; gap: 10px; margin-top: 15px;
-        }
-        .engine-btn {
-            flex: 1; padding: 12px; border: 2px solid #00d4ff; border-radius: 5px;
-            background: transparent; color: #00d4ff; cursor: pointer;
-            font-size: 14px; font-weight: bold; transition: all 0.3s;
-        }
-        .engine-btn.active { background: #00d4ff; color: #1a1a2e; }
-        .engine-btn:hover { background: #00d4ff33; }
+        .params { background: #252540; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: none; }
+        .params.visible { display: block; }
+        .params h4 { margin-top: 0; color: #00d4ff; }
         
-        .chatterbox-params {
-            background: #0f3460; padding: 15px; border-radius: 8px;
-            margin-top: 15px; display: none;
-        }
-        .chatterbox-params.show { display: block; }
-        .chatterbox-params h3 { margin: 0 0 15px 0; color: #ff6b6b; font-size: 16px; }
+        .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .slider-row label { width: 120px; margin: 0; }
+        .slider-row input { flex: 1; }
+        .slider-row span { width: 50px; text-align: right; }
         
-        .preset-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-            margin-bottom: 15px;
-        }
-        .preset-btn {
-            padding: 8px; border: 1px solid #666; border-radius: 5px;
-            background: transparent; color: #aaa; cursor: pointer;
-            font-size: 12px; transition: all 0.2s;
-        }
-        .preset-btn.active { border-color: #ff6b6b; color: #ff6b6b; background: #ff6b6b22; }
-        .preset-btn:hover { border-color: #ff6b6b; }
+        button { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background: #00b8e6; }
+        button:disabled { background: #555; cursor: not-allowed; }
         
-        .slider-row { margin-bottom: 12px; }
-        .slider-label { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .slider-value { color: #ff6b6b; font-weight: bold; }
+        .error { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .success { background: #44ff44; color: #1a1a2e; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
         
-        button[type="submit"] {
-            width: 100%; padding: 15px; margin-top: 20px;
-            background: linear-gradient(135deg, #00d4ff, #0099cc);
-            border: none; border-radius: 5px; color: white;
-            font-size: 18px; font-weight: bold; cursor: pointer;
-            transition: transform 0.2s;
-        }
-        button[type="submit"]:hover { transform: scale(1.02); }
-        button[type="submit"]:disabled { opacity: 0.5; cursor: wait; }
+        audio { width: 100%; margin-top: 15px; }
+        .audio-box { background: #252540; padding: 20px; border-radius: 8px; margin-top: 20px; }
         
-        .audio-result {
-            margin-top: 20px; padding: 20px;
-            background: #16213e; border-radius: 10px;
-            text-align: center;
-        }
-        audio { width: 100%; margin-top: 10px; }
-        
-        .info { font-size: 12px; color: #666; margin-top: 5px; }
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+        .status-dot.online { background: #44ff44; }
+        .status-dot.offline { background: #ff4444; }
     </style>
 </head>
 <body>
-    <h1>Text to Speech</h1>
     <div class="nav">
         <a href="/">Home</a>
-        <a href="/voiceClone">Voice Clone</a>
-        <a href="/talk">Talk</a>
+        <a href="/talk">Sprechen</a>
+        <a href="/voiceClone">Stimme klonen</a>
     </div>
+    
+    <h1>Text-to-Speech</h1>
     
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
     
     <form method="POST" id="ttsForm">
-        <label for="text">Text</label>
-        <textarea name="text" id="text" placeholder="Text eingeben...">{{ text or '' }}</textarea>
-        
-        <label>Engine</label>
-        <div class="engine-switch">
-            <button type="button" class="engine-btn {% if selected_engine != 'chatterbox' %}active{% endif %}" 
-                    onclick="setEngine('xtts')">XTTS (schnell)</button>
-            <button type="button" class="engine-btn {% if selected_engine == 'chatterbox' %}active{% endif %}" 
-                    onclick="setEngine('chatterbox')">Chatterbox (MIT)</button>
+        <!-- Engine Tabs -->
+        <div class="engine-tabs">
+            {% for key, srv in servers.items() %}
+            <div class="engine-tab {% if selected_engine == key or (not selected_engine and key == 'xtts') %}active{% endif %}" 
+                 data-engine="{{ key }}" onclick="selectEngine('{{ key }}')">
+                <span id="status-{{ key }}" class="status-dot"></span>
+                <strong>{{ srv.name }}</strong>
+                <small>{{ srv.desc }}</small>
+            </div>
+            {% endfor %}
         </div>
-        <input type="hidden" name="engine" id="engine" value="{{ selected_engine or 'xtts' }}">
+        <input type="hidden" name="engine" id="engineInput" value="{{ selected_engine or 'xtts' }}">
+        
+        <div class="form-group">
+            <label>Text</label>
+            <textarea name="text" placeholder="Text eingeben...">{{ text or '' }}</textarea>
+        </div>
         
         <div class="row">
             <div class="col">
-                <label for="voice">Stimme</label>
-                <select name="voice" id="voice">
-                    <optgroup label="XTTS" id="xtts-voices">
-                    {% for v in xtts_voices %}
-                        <option value="{{ v }}" {% if v == selected_voice and selected_engine != 'chatterbox' %}selected{% endif %}>{{ v }}</option>
-                    {% endfor %}
-                    </optgroup>
-                    <optgroup label="Chatterbox" id="chatterbox-voices">
-                    {% for v in chatterbox_voices %}
-                        <option value="{{ v }}" {% if v == selected_voice and selected_engine == 'chatterbox' %}selected{% endif %}>{{ v }}</option>
-                    {% endfor %}
-                    </optgroup>
-                </select>
+                <div class="form-group">
+                    <label>Stimme</label>
+                    <select name="voice" id="voiceSelect">
+                        {% for engine, voice_list in voices.items() %}
+                        <optgroup label="{{ servers[engine].name }}" data-engine="{{ engine }}">
+                            {% for v in voice_list %}
+                            <option value="{{ v }}" {% if selected_voice == v %}selected{% endif %}>{{ v }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div class="col">
-                <label for="language">Sprache</label>
-                <select name="language" id="language">
-                    {% for lang in languages %}
-                        <option value="{{ lang }}" {% if lang == selected_language %}selected{% endif %}>{{ lang }}</option>
-                    {% endfor %}
-                </select>
+                <div class="form-group">
+                    <label>Sprache</label>
+                    <select name="language">
+                        {% for code, name in languages.items() %}
+                        <option value="{{ code }}" {% if selected_language == code %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
         
-        <div class="chatterbox-params {% if selected_engine == 'chatterbox' %}show{% endif %}" id="cbParams">
-            <h3>Chatterbox Stimmvariation</h3>
-            
-            <label>Preset</label>
-            <div class="preset-grid">
-                {% for key, preset in presets.items() %}
-                <button type="button" class="preset-btn {% if key == selected_preset %}active{% endif %}" 
-                        onclick="setPreset('{{ key }}', {{ preset.exaggeration }}, {{ preset.cfg_weight }}, {{ preset.temperature }})">
-                    {{ preset.label }}
-                </button>
-                {% endfor %}
-                <button type="button" class="preset-btn {% if selected_preset == 'custom' %}active{% endif %}" 
-                        onclick="setPreset('custom')">Custom</button>
+        <!-- Chatterbox Params -->
+        <div class="params" id="chatterbox-params">
+            <h4>Chatterbox Parameter</h4>
+            <div class="form-group">
+                <label>Preset</label>
+                <select name="preset" id="presetSelect" onchange="applyPreset()">
+                    {% for key, p in presets.items() %}
+                    <option value="{{ key }}" {% if selected_preset == key %}selected{% endif %}>{{ p.label }}</option>
+                    {% endfor %}
+                    <option value="custom">Custom</option>
+                </select>
             </div>
-            <input type="hidden" name="preset" id="preset" value="{{ selected_preset or 'neutral' }}">
-            
             <div class="slider-row">
-                <div class="slider-label">
-                    <span>Exaggeration (Emotion)</span>
-                    <span class="slider-value" id="exVal">{{ exaggeration or 0.5 }}</span>
-                </div>
-                <input type="range" name="exaggeration" id="exaggeration" 
-                       min="0" max="2" step="0.1" value="{{ exaggeration or 0.5 }}"
-                       oninput="updateSlider('exVal', this.value); setPreset('custom')">
-                <div class="info">0 = monoton, 0.5 = normal, 1+ = uebertrieben</div>
+                <label>Exaggeration</label>
+                <input type="range" name="exaggeration" id="exaggeration" min="0" max="2" step="0.1" value="{{ exaggeration or 0.5 }}" oninput="updateSlider(this)">
+                <span id="exaggeration-val">{{ exaggeration or 0.5 }}</span>
             </div>
-            
             <div class="slider-row">
-                <div class="slider-label">
-                    <span>CFG Weight (Stimmtreue)</span>
-                    <span class="slider-value" id="cfgVal">{{ cfg_weight or 0.5 }}</span>
-                </div>
-                <input type="range" name="cfg_weight" id="cfg_weight" 
-                       min="0" max="1" step="0.1" value="{{ cfg_weight or 0.5 }}"
-                       oninput="updateSlider('cfgVal', this.value); setPreset('custom')">
-                <div class="info">0 = kreativ, 0.5 = ausgewogen, 1 = streng an Vorlage</div>
+                <label>CFG Weight</label>
+                <input type="range" name="cfg_weight" id="cfg_weight" min="0" max="1" step="0.1" value="{{ cfg_weight or 0.5 }}" oninput="updateSlider(this)">
+                <span id="cfg_weight-val">{{ cfg_weight or 0.5 }}</span>
             </div>
-            
             <div class="slider-row">
-                <div class="slider-label">
-                    <span>Temperature (Variation)</span>
-                    <span class="slider-value" id="tempVal">{{ temperature or 0.8 }}</span>
+                <label>Temperature</label>
+                <input type="range" name="temperature" id="temperature" min="0.1" max="1.5" step="0.1" value="{{ temperature or 0.8 }}" oninput="updateSlider(this)">
+                <span id="temperature-val">{{ temperature or 0.8 }}</span>
+            </div>
+        </div>
+        
+        <!-- MLX Params -->
+        <div class="params" id="mlx-params">
+            <h4>MLX-Audio Parameter</h4>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label>Modell</label>
+                        <select name="mlx_model">
+                            {% for key, name in mlx_models.items() %}
+                            <option value="{{ key }}" {% if selected_mlx_model == key %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <input type="range" name="temperature" id="temperature" 
-                       min="0" max="1" step="0.1" value="{{ temperature or 0.8 }}"
-                       oninput="updateSlider('tempVal', this.value); setPreset('custom')">
-                <div class="info">0 = deterministisch, 1 = variabel</div>
+                <div class="col">
+                    <div class="slider-row">
+                        <label>Speed</label>
+                        <input type="range" name="speed" min="0.5" max="2" step="0.1" value="{{ speed or 1.0 }}" oninput="updateSlider(this)">
+                        <span id="speed-val">{{ speed or 1.0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fish Params -->
+        <div class="params" id="fish-params">
+            <h4>Fish Speech Parameter</h4>
+            <div class="slider-row">
+                <label>Temperature</label>
+                <input type="range" name="fish_temp" min="0.1" max="1.5" step="0.1" value="0.7" oninput="updateSlider(this)">
+                <span id="fish_temp-val">0.7</span>
             </div>
         </div>
         
@@ -195,8 +176,8 @@
     </form>
     
     {% if audio %}
-    <div class="audio-result">
-        <h3>Ergebnis</h3>
+    <div class="audio-box">
+        <h3>Generiertes Audio</h3>
         <audio controls autoplay>
             <source src="data:audio/wav;base64,{{ audio }}" type="audio/wav">
         </audio>
@@ -204,42 +185,74 @@
     {% endif %}
     
     <script>
-        function setEngine(engine) {
-            document.getElementById('engine').value = engine;
-            document.querySelectorAll('.engine-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+        const presets = {{ presets | tojson | safe }};
+        
+        function selectEngine(engine) {
+            document.querySelectorAll('.engine-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-engine="${engine}"]`).classList.add('active');
+            document.getElementById('engineInput').value = engine;
             
-            const cbParams = document.getElementById('cbParams');
-            if (engine === 'chatterbox') {
-                cbParams.classList.add('show');
-            } else {
-                cbParams.classList.remove('show');
+            // Show/hide params
+            document.querySelectorAll('.params').forEach(p => p.classList.remove('visible'));
+            const params = document.getElementById(engine + '-params');
+            if (params) params.classList.add('visible');
+            
+            // Filter voices
+            filterVoices(engine);
+        }
+        
+        function filterVoices(engine) {
+            const select = document.getElementById('voiceSelect');
+            const groups = select.querySelectorAll('optgroup');
+            groups.forEach(g => {
+                g.style.display = g.dataset.engine === engine ? '' : 'none';
+            });
+            // Select first visible option
+            const visibleGroup = select.querySelector(`optgroup[data-engine="${engine}"]`);
+            if (visibleGroup && visibleGroup.querySelector('option')) {
+                visibleGroup.querySelector('option').selected = true;
             }
         }
         
-        function setPreset(name, ex, cfg, temp) {
-            document.getElementById('preset').value = name;
-            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (name !== 'custom' && ex !== undefined) {
-                document.getElementById('exaggeration').value = ex;
-                document.getElementById('cfg_weight').value = cfg;
-                document.getElementById('temperature').value = temp;
-                updateSlider('exVal', ex);
-                updateSlider('cfgVal', cfg);
-                updateSlider('tempVal', temp);
+        function applyPreset() {
+            const preset = document.getElementById('presetSelect').value;
+            if (preset !== 'custom' && presets[preset]) {
+                document.getElementById('exaggeration').value = presets[preset].exaggeration;
+                document.getElementById('cfg_weight').value = presets[preset].cfg_weight;
+                document.getElementById('temperature').value = presets[preset].temperature;
+                updateSlider(document.getElementById('exaggeration'));
+                updateSlider(document.getElementById('cfg_weight'));
+                updateSlider(document.getElementById('temperature'));
             }
         }
         
-        function updateSlider(id, val) {
-            document.getElementById(id).textContent = val;
+        function updateSlider(el) {
+            const span = document.getElementById(el.name + '-val');
+            if (span) span.textContent = el.value;
         }
         
-        document.getElementById('ttsForm').onsubmit = function() {
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').textContent = 'Generiere...';
-        };
+        // Check server status
+        async function checkStatus() {
+            try {
+                const r = await fetch('/api/health');
+                const data = await r.json();
+                for (const [engine, status] of Object.entries(data)) {
+                    const dot = document.getElementById('status-' + engine);
+                    if (dot) {
+                        dot.classList.remove('online', 'offline');
+                        dot.classList.add(status.status === 'ok' ? 'online' : 'offline');
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            const engine = document.getElementById('engineInput').value;
+            selectEngine(engine);
+            checkStatus();
+            setInterval(checkStatus, 30000);
+        });
     </script>
 </body>
 </html>
