@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Engines - OpenVoice Hub</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #1a1a2e; color: #eee; }
+        h1 { color: #00d4ff; }
+        a { color: #00d4ff; }
+        .nav { margin-bottom: 20px; }
+        .nav a { margin-right: 15px; }
+        
+        .info-box { background: rgba(0,212,255,0.1); border-left: 3px solid #00d4ff; padding: 15px; margin: 20px 0; }
+        .info-box h4 { margin: 0 0 10px 0; color: #00d4ff; }
+        .info-box p { margin: 5px 0; color: #aaa; font-size: 0.9em; }
+        
+        .form-section { background: #252540; padding: 25px; border-radius: 10px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #aaa; }
+        textarea { width: 100%; height: 100px; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #1a1a2e; color: #eee; font-size: 16px; resize: vertical; }
+        select { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #1a1a2e; color: #eee; font-size: 14px; }
+        
+        .language-info { margin-top: 10px; font-size: 0.85em; }
+        .language-info .common { color: #44ff44; }
+        .language-info .partial { color: #ffaa44; }
+        
+        .row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 250px; }
+        
+        button[type="submit"] { background: #00d4ff; color: #1a1a2e; border: none; padding: 15px 40px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button[type="submit"]:hover { background: #00b8e6; }
+        button[type="submit"]:disabled { background: #555; cursor: not-allowed; }
+        
+        .error { background: #ff4444; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 30px; }
+        
+        .result-card { background: #252540; border-radius: 10px; overflow: hidden; }
+        .result-card.success { border: 2px solid #333; }
+        .result-card.error { border: 2px solid #ff4444; }
+        .result-card.fastest { border: 2px solid #44ff44; }
+        
+        .result-header { padding: 15px; background: #1a1a2e; display: flex; justify-content: space-between; align-items: center; }
+        .result-header h3 { margin: 0; color: #fff; font-size: 1.1em; }
+        .result-header .badge { padding: 4px 10px; border-radius: 4px; font-size: 0.75em; font-weight: bold; }
+        .result-header .badge.time { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .result-header .badge.fastest { background: rgba(68,255,68,0.2); color: #44ff44; }
+        .result-header .badge.error { background: rgba(255,68,68,0.2); color: #ff4444; }
+        
+        .result-body { padding: 15px; }
+        .result-body audio { width: 100%; margin-bottom: 10px; }
+        .result-body .settings { font-size: 0.8em; color: #888; }
+        .result-body .settings code { background: #1a1a2e; padding: 2px 6px; border-radius: 3px; }
+        .result-body .error-msg { color: #ff6666; font-size: 0.9em; }
+        
+        .settings-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+        .settings-table th, .settings-table td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        .settings-table th { color: #00d4ff; font-weight: normal; font-size: 0.85em; }
+        .settings-table td { color: #ccc; font-size: 0.9em; }
+        .settings-table code { background: #1a1a2e; padding: 2px 6px; border-radius: 3px; font-size: 0.85em; }
+        
+        .engine-support { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .engine-badge { padding: 4px 10px; border-radius: 4px; font-size: 0.8em; }
+        .engine-badge.supported { background: rgba(68,255,68,0.15); color: #44ff44; }
+        .engine-badge.unsupported { background: rgba(255,68,68,0.1); color: #666; text-decoration: line-through; }
+        
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #555; }
+        .status-dot.online { background: #44ff44; }
+        .status-dot.offline { background: #ff4444; }
+        
+        #loading { display: none; text-align: center; padding: 40px; }
+        #loading.visible { display: block; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #333; border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="/">Home</a>
+        <a href="/talk">Speak</a>
+        <a href="/compare">Compare</a>
+        <a href="/clone">Clone Voice</a>
+    </div>
+    
+    <h1>Compare All Engines</h1>
+    <p style="color: #888;">Generate the same text with all engines using optimized "Best Clone" settings</p>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    <div class="info-box">
+        <h4>Best Clone Settings</h4>
+        <p>Each engine uses settings optimized for maximum fidelity to the original voice:</p>
+        <p><strong>Chatterbox:</strong> exaggeration=0.15, cfg_weight=0.9, temperature=0.3</p>
+        <p><strong>OpenAudio:</strong> temperature=0.3, top_p=0.7</p>
+        <p><strong>XTTS:</strong> Default settings (optimized internally)</p>
+        <p><strong>Kokoro:</strong> speed=1.0 (preset voices only)</p>
+    </div>
+    
+    <form method="POST" id="compareForm" class="form-section">
+        <div class="form-group">
+            <label>Text to synthesize</label>
+            <textarea name="text" placeholder="Enter text to compare across all engines...">{{ text or 'Hello, this is a test of the text to speech system. How does each engine sound to you?' }}</textarea>
+        </div>
+        
+        <div class="row">
+            <div class="col">
+                <div class="form-group">
+                    <label>Language</label>
+                    <select name="language" id="languageSelect" onchange="updateEngineSupport()">
+                        <optgroup label="Supported by ALL engines">
+                            {% for lang in common_languages %}
+                            <option value="{{ lang }}" {% if selected_language == lang or (not selected_language and lang == 'en') %}selected{% endif %}>
+                                {{ language_names.get(lang, lang) }} (all engines)
+                            </option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Partial support">
+                            {% for lang in all_languages %}
+                            {% if lang not in common_languages %}
+                            <option value="{{ lang }}" {% if selected_language == lang %}selected{% endif %}>
+                                {{ language_names.get(lang, lang) }}
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                    <div class="language-info">
+                        <span class="common">Common languages</span> work with all engines. 
+                        <span class="partial">Other languages</span> may not work with all engines.
+                    </div>
+                    <div class="engine-support" id="engineSupport">
+                        {% for engine, srv in servers.items() %}
+                        <span class="engine-badge" id="support-{{ engine }}" data-languages="{{ srv.languages | join(',') }}">
+                            <span class="status-dot" id="status-{{ engine }}"></span>
+                            {{ srv.name }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                    <label>Voice (optional, for cloning engines)</label>
+                    <input type="text" name="voice" placeholder="Leave empty for default" style="width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #1a1a2e; color: #eee;">
+                </div>
+            </div>
+        </div>
+        
+        <input type="hidden" name="parallel" value="true">
+        <button type="submit" id="submitBtn">Generate with All Engines</button>
+    </form>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Generating audio with all engines...</p>
+        <p style="color: #666; font-size: 0.9em;">This may take 30-60 seconds</p>
+    </div>
+    
+    {% if results %}
+    <h2 style="color: #00d4ff; margin-top: 40px;">Results</h2>
+    <p style="color: #888;">{{ engines_run | length }} engine(s) tested for language "{{ language_names.get(selected_language, selected_language) }}"</p>
+    
+    <div class="results-grid">
+        {% set fastest_time = namespace(value=999999) %}
+        {% set fastest_engine = namespace(value='') %}
+        {% for r in results %}
+            {% if r.audio and r.time < fastest_time.value %}
+                {% set fastest_time.value = r.time %}
+                {% set fastest_engine.value = r.engine %}
+            {% endif %}
+        {% endfor %}
+        
+        {% for r in results %}
+        <div class="result-card {% if r.audio %}success{% else %}error{% endif %} {% if r.engine == fastest_engine.value %}fastest{% endif %}">
+            <div class="result-header">
+                <h3>{{ r.name or r.engine }}</h3>
+                <div>
+                    {% if r.audio %}
+                        {% if r.engine == fastest_engine.value %}
+                        <span class="badge fastest">Fastest</span>
+                        {% endif %}
+                        <span class="badge time">{{ r.time }}s</span>
+                    {% else %}
+                        <span class="badge error">Failed</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="result-body">
+                {% if r.audio %}
+                <audio controls>
+                    <source src="data:audio/wav;base64,{{ r.audio }}" type="audio/wav">
+                </audio>
+                <div class="settings">
+                    {% if r.settings %}
+                    Settings: 
+                    {% for k, v in r.settings.items() %}
+                    <code>{{ k }}={{ v }}</code>
+                    {% endfor %}
+                    {% else %}
+                    Default settings
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="error-msg">{{ r.error or 'Unknown error' }}</p>
+                {% if r.time %}
+                <p style="font-size: 0.8em; color: #666;">Attempted for {{ r.time }}s</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <h2 style="color: #00d4ff; margin-top: 50px;">Engine Settings Reference</h2>
+    <table class="settings-table">
+        <tr>
+            <th>Engine</th>
+            <th>Best Clone Settings</th>
+            <th>Languages</th>
+            <th>Notes</th>
+        </tr>
+        {% for engine, info in best_settings.items() %}
+        <tr>
+            <td><strong>{{ info.name }}</strong></td>
+            <td>
+                {% if info.settings %}
+                {% for k, v in info.settings.items() %}
+                <code>{{ k }}={{ v }}</code>
+                {% endfor %}
+                {% else %}
+                <em>Default</em>
+                {% endif %}
+            </td>
+            <td>{{ servers[engine].languages | length }} languages</td>
+            <td style="color: #888;">{{ info.description }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <script>
+        const serverLanguages = {
+            {% for engine, srv in servers.items() %}
+            "{{ engine }}": {{ srv.languages | tojson }},
+            {% endfor %}
+        };
+        
+        function updateEngineSupport() {
+            const lang = document.getElementById('languageSelect').value;
+            for (const [engine, languages] of Object.entries(serverLanguages)) {
+                const badge = document.getElementById('support-' + engine);
+                if (badge) {
+                    if (languages.includes(lang)) {
+                        badge.classList.add('supported');
+                        badge.classList.remove('unsupported');
+                    } else {
+                        badge.classList.remove('supported');
+                        badge.classList.add('unsupported');
+                    }
+                }
+            }
+        }
+        
+        async function checkStatus() {
+            try {
+                const r = await fetch('/api/health');
+                const data = await r.json();
+                for (const [engine, status] of Object.entries(data)) {
+                    const dot = document.getElementById('status-' + engine);
+                    if (dot) {
+                        dot.classList.remove('online', 'offline');
+                        dot.classList.add(status.status === 'ok' ? 'online' : 'offline');
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        document.getElementById('compareForm').addEventListener('submit', function() {
+            document.getElementById('loading').classList.add('visible');
+            document.getElementById('submitBtn').disabled = true;
+        });
+        
+        updateEngineSupport();
+        checkStatus();
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>

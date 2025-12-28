@@ -5,9 +5,11 @@ Flask Frontend for XTTS, Chatterbox, Kokoro, OpenAudio
 With optimized presets for best voice cloning quality
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import requests
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 app = Flask(__name__)
 
@@ -51,7 +53,62 @@ SERVERS = {
     },
 }
 
-# Chatterbox Presets - Optimized for different use cases
+# Best clone settings for each engine
+BEST_CLONE_SETTINGS = {
+    "xtts": {
+        "name": "XTTS v2",
+        "settings": {},  # XTTS uses default settings for cloning
+        "description": "16 languages, faithful reproduction"
+    },
+    "chatterbox": {
+        "name": "Chatterbox",
+        "settings": {
+            "exaggeration": 0.15,
+            "cfg_weight": 0.9,
+            "temperature": 0.3
+        },
+        "description": "Low exaggeration, high CFG for faithful clone"
+    },
+    "kokoro": {
+        "name": "Kokoro",
+        "settings": {
+            "speed": 1.0
+        },
+        "description": "Preset voices only (no cloning)"
+    },
+    "openaudio": {
+        "name": "OpenAudio S1",
+        "settings": {
+            "temperature": 0.3,
+            "top_p": 0.7,
+            "repetition_penalty": 1.1
+        },
+        "description": "Low temperature for consistent output"
+    }
+}
+
+# Language name mapping
+LANGUAGE_NAMES = {
+    "en": "English",
+    "de": "German", 
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "ru": "Russian",
+    "nl": "Dutch",
+    "cs": "Czech",
+    "ar": "Arabic",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "hu": "Hungarian",
+    "th": "Thai"
+}
+
+# Chatterbox Presets
 CHATTERBOX_PRESETS = {
     "best_clone": {
         "exaggeration": 0.15,
@@ -152,9 +209,185 @@ OPENAUDIO_PRESETS = {
 }
 
 
+def get_common_languages():
+    """Get languages supported by ALL engines that support cloning"""
+    clone_engines = [k for k, v in SERVERS.items() if v.get("supports_cloning")]
+    if not clone_engines:
+        return []
+    
+    common = set(SERVERS[clone_engines[0]]["languages"])
+    for engine in clone_engines[1:]:
+        common = common.intersection(set(SERVERS[engine]["languages"]))
+    
+    return sorted(list(common))
+
+
+def get_all_languages():
+    """Get all unique languages across all engines"""
+    all_langs = set()
+    for srv in SERVERS.values():
+        all_langs.update(srv.get("languages", []))
+    return sorted(list(all_langs))
+
+
+def generate_tts_for_engine(engine, text, language, voice=None):
+    """Generate TTS for a single engine with best clone settings"""
+    server = SERVERS.get(engine)
+    if not server:
+        return {"engine": engine, "error": "Unknown engine", "audio": None, "time": 0}
+    
+    # Check if language is supported
+    if language not in server.get("languages", []):
+        return {"engine": engine, "error": f"Language '{language}' not supported", "audio": None, "time": 0}
+    
+    url = server["url"]
+    settings = BEST_CLONE_SETTINGS.get(engine, {}).get("settings", {})
+    clean_text = text.replace("\n", " ").replace("\r", "").strip()
+    
+    start_time = time.time()
+    
+    try:
+        if engine == "xtts":
+            payload = {"text": clean_text, "language": language}
+            if voice:
+                payload["voice"] = voice
+            r = requests.post(f"{url}/tts", json=payload, timeout=120)
+            
+        elif engine == "chatterbox":
+            payload = {
+                "text": clean_text,
+                "exaggeration": settings.get("exaggeration", 0.15),
+                "cfg_weight": settings.get("cfg_weight", 0.9),
+                "temperature": settings.get("temperature", 0.3)
+            }
+            if voice:
+                payload["voice"] = voice
+            r = requests.post(f"{url}/tts", json=payload, timeout=180)
+            
+        elif engine == "kokoro":
+            payload = {
+                "text": clean_text,
+                "voice": voice if voice else "af_heart",
+                "speed": settings.get("speed", 1.0)
+            }
+            r = requests.post(f"{url}/tts", json=payload, timeout=60)
+            
+        elif engine == "openaudio":
+            payload = {
+                "text": clean_text,
+                "format": "wav",
+                "temperature": settings.get("temperature", 0.3),
+                "top_p": settings.get("top_p", 0.7)
+            }
+            if voice:
+                payload["reference_id"] = voice
+            r = requests.post(f"{url}/v1/tts", json=payload, timeout=180)
+            
+        else:
+            return {"engine": engine, "error": "Engine not implemented", "audio": None, "time": 0}
+        
+        elapsed = round(time.time() - start_time, 2)
+        
+        if r.status_code == 200 and len(r.content) > 100:
+            audio_b64 = base64.b64encode(r.content).decode()
+            return {
+                "engine": engine,
+                "name": server["name"],
+                "audio": audio_b64,
+                "time": elapsed,
+                "error": None,
+                "settings": settings
+            }
+        else:
+            try:
+                error = r.json().get("detail", r.json().get("message", f"Error {r.status_code}"))
+            except:
+                error = f"Error {r.status_code}"
+            return {"engine": engine, "name": server["name"], "error": error, "audio": None, "time": elapsed}
+            
+    except requests.exceptions.Timeout:
+        elapsed = round(time.time() - start_time, 2)
+        return {"engine": engine, "name": server["name"], "error": "Timeout", "audio": None, "time": elapsed}
+    except Exception as e:
+        elapsed = round(time.time() - start_time, 2)
+        return {"engine": engine, "name": server["name"], "error": str(e), "audio": None, "time": elapsed}
+
+
 @app.route("/")
 def index():
     return render_template("index.html", servers=SERVERS)
+
+
+@app.route("/compare", methods=["GET", "POST"])
+def compare():
+    """Compare all engines with the same text using best clone settings"""
+    common_languages = get_common_languages()
+    all_languages = get_all_languages()
+    results = []
+    
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
+        language = request.form.get("language", "en")
+        voice = request.form.get("voice", "")
+        run_parallel = request.form.get("parallel", "true") == "true"
+        
+        if not text:
+            return render_template("compare.html",
+                error="Text required",
+                common_languages=common_languages,
+                all_languages=all_languages,
+                language_names=LANGUAGE_NAMES,
+                servers=SERVERS,
+                best_settings=BEST_CLONE_SETTINGS)
+        
+        # Determine which engines to run based on language
+        engines_to_run = []
+        for engine, srv in SERVERS.items():
+            if language in srv.get("languages", []):
+                engines_to_run.append(engine)
+        
+        if not engines_to_run:
+            return render_template("compare.html",
+                error=f"No engine supports language '{language}'",
+                common_languages=common_languages,
+                all_languages=all_languages,
+                language_names=LANGUAGE_NAMES,
+                servers=SERVERS,
+                best_settings=BEST_CLONE_SETTINGS)
+        
+        # Run TTS for all compatible engines
+        if run_parallel:
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {
+                    executor.submit(generate_tts_for_engine, engine, text, language, voice): engine
+                    for engine in engines_to_run
+                }
+                for future in as_completed(futures):
+                    results.append(future.result())
+        else:
+            for engine in engines_to_run:
+                results.append(generate_tts_for_engine(engine, text, language, voice))
+        
+        # Sort by engine name for consistent display
+        results.sort(key=lambda x: x.get("engine", ""))
+        
+        return render_template("compare.html",
+            results=results,
+            text=text,
+            selected_language=language,
+            common_languages=common_languages,
+            all_languages=all_languages,
+            language_names=LANGUAGE_NAMES,
+            servers=SERVERS,
+            best_settings=BEST_CLONE_SETTINGS,
+            engines_run=engines_to_run)
+    
+    return render_template("compare.html",
+        common_languages=common_languages,
+        all_languages=all_languages,
+        language_names=LANGUAGE_NAMES,
+        servers=SERVERS,
+        best_settings=BEST_CLONE_SETTINGS)
 
 
 @app.route("/clone", methods=["GET", "POST"])
@@ -275,7 +508,6 @@ def talk():
             
             # OpenAudio
             elif engine == "openaudio":
-                # Add emotion marker if selected
                 if emotion:
                     clean_text = f"({emotion}) {clean_text}"
                 
@@ -301,7 +533,7 @@ def talk():
                     chatterbox_presets=CHATTERBOX_PRESETS, kokoro_voices=KOKORO_VOICES,
                     openaudio_emotions=OPENAUDIO_EMOTIONS, openaudio_presets=OPENAUDIO_PRESETS)
             
-            if r.status_code == 200 and "audio" in r.headers.get("content-type", "") or r.headers.get("content-type", "").startswith("audio"):
+            if r.status_code == 200 and len(r.content) > 100:
                 audio_b64 = base64.b64encode(r.content).decode()
                 return render_template("talk.html",
                     voices=all_voices, servers=SERVERS,
@@ -314,20 +546,6 @@ def talk():
                     exaggeration=exaggeration, cfg_weight=cfg_weight,
                     temperature=temperature, oa_temperature=oa_temperature, top_p=top_p)
             else:
-                # Check if response is WAV despite content-type
-                if r.status_code == 200 and len(r.content) > 100:
-                    audio_b64 = base64.b64encode(r.content).decode()
-                    return render_template("talk.html",
-                        voices=all_voices, servers=SERVERS,
-                        chatterbox_presets=CHATTERBOX_PRESETS, kokoro_voices=KOKORO_VOICES,
-                        openaudio_emotions=OPENAUDIO_EMOTIONS, openaudio_presets=OPENAUDIO_PRESETS,
-                        audio=audio_b64, text=text,
-                        selected_voice=voice, selected_language=language,
-                        selected_engine=engine, selected_preset=preset,
-                        selected_emotion=emotion, speed=speed,
-                        exaggeration=exaggeration, cfg_weight=cfg_weight,
-                        temperature=temperature, oa_temperature=oa_temperature, top_p=top_p)
-                
                 try:
                     error = r.json().get("detail", r.json().get("message", f"TTS Error {r.status_code}"))
                 except:
@@ -372,6 +590,37 @@ def api_health():
         except:
             status[engine] = {"status": "offline"}
     return jsonify(status)
+
+
+@app.route("/api/languages")
+def api_languages():
+    """Get language information"""
+    return jsonify({
+        "common": get_common_languages(),
+        "all": get_all_languages(),
+        "by_engine": {k: v.get("languages", []) for k, v in SERVERS.items()},
+        "names": LANGUAGE_NAMES
+    })
+
+
+@app.route("/api/compare", methods=["POST"])
+def api_compare():
+    """API endpoint for comparing all engines"""
+    data = request.json
+    text = data.get("text", "")
+    language = data.get("language", "en")
+    voice = data.get("voice", "")
+    
+    if not text:
+        return jsonify({"error": "Text required"}), 400
+    
+    results = []
+    for engine, srv in SERVERS.items():
+        if language in srv.get("languages", []):
+            result = generate_tts_for_engine(engine, text, language, voice)
+            results.append(result)
+    
+    return jsonify({"results": results, "language": language})
 
 
 @app.route("/api/tts", methods=["POST"])
@@ -423,7 +672,6 @@ def get_all_voices():
     """Get voices from all servers"""
     voices = {}
     
-    # Kokoro - static list
     voices["kokoro"] = list(KOKORO_VOICES.keys())
     
     for engine, server in SERVERS.items():
@@ -431,9 +679,8 @@ def get_all_voices():
             continue
         try:
             if engine == "openaudio":
-                # OpenAudio uses reference IDs from references/ folder
                 r = requests.get(f"{server['url']}/v1/health", timeout=3)
-                voices[engine] = []  # Reference voices need to be set up
+                voices[engine] = []
             else:
                 r = requests.get(f"{server['url']}/voices", timeout=3)
                 if r.status_code == 200:
