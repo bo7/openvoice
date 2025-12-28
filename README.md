@@ -1,383 +1,168 @@
-# Mac2 TTS/STT Server Documentation
+# OpenVoice Hub
 
-Mac Studio M2 Ultra (192.168.2.147 / WireGuard: 10.200.0.12)
-512GB RAM, 96 GPU cores
+Multi-Engine Text-to-Speech System running on Mac Studio M2 Ultra.
 
-## Server Overview
+## Features
 
-| Port | Server | Model | Engine | Use Case |
-|------|--------|-------|--------|----------|
-| 8765 | Speech Server | Whisper | STT | Speech-to-Text transcription |
-| 8766 | XTTS Server | XTTS v2 | CPU | Voice cloning, multilingual TTS |
-| 8767 | Chatterbox | Chatterbox | MPS | Expressive emotional TTS |
-| 8768 | MLX Server | Various | MLX | Apple Silicon optimized inference |
-| 8769 | Kokoro | Kokoro-82M | MLX | Fast, high-quality TTS (11 voices) |
-| 8770 | OpenAudio | S1-mini 0.5B | MPS | Emotional TTS, 50+ emotions, multilingual |
+- 4 TTS Engines: Kokoro, XTTS v2, Chatterbox, OpenAudio S1
+- Voice Cloning with multiple engines
+- 50+ Emotional speech markers
+- 16 languages support
+- Best Clone presets for faithful voice reproduction
+- Side-by-side engine comparison
 
----
-
-## 1. Speech Server (Whisper STT) - Port 8765
-
-**Location:** `~/speech-server/`
-**Purpose:** Speech-to-Text transcription
-
-### Usage
+## Quick Start
 
 ```bash
-# Transcribe audio file
-curl -X POST http://mac2:8765/transcribe \
-  -F "file=@audio.wav"
+# Start the Flask server
+python app.py
 
-# Transcribe with language hint
-curl -X POST http://mac2:8765/transcribe \
-  -F "file=@audio.wav" \
-  -F "language=en"
+# Access at http://localhost:5050
 ```
 
-### Response
-```json
-{
-  "text": "Transcribed text here",
-  "language": "en"
-}
-```
+## Pages
 
----
+| Route | Description |
+|-------|-------------|
+| `/` | Home - Engine overview and status |
+| `/talk` | Text-to-Speech with engine selection |
+| `/compare` | Compare all engines with same text |
+| `/clone` | Clone a voice from audio sample |
 
-## 2. XTTS Server - Port 8766
+## TTS Engines
 
-**Location:** `~/xtts-server/`
-**Purpose:** Voice cloning and multilingual text-to-speech
+### Kokoro (Port 8769)
+- Fastest engine
+- 11 preset voices (no cloning)
+- English only
+- MLX-optimized for Apple Silicon
 
-### Usage
+### XTTS v2 (Port 8766)
+- Voice cloning support
+- 16 languages
+- CPU-based, slower but reliable
 
+### Chatterbox (Port 8767)
+- Expressive emotional speech
+- Voice cloning with fine control
+- English only
+- Parameters: exaggeration, cfg_weight, temperature
+
+### OpenAudio S1 (Port 8770)
+- State-of-the-art quality
+- 50+ emotion markers
+- 14 languages
+- Voice cloning support
+
+## Best Clone Settings
+
+Settings optimized for maximum fidelity to original voice:
+
+| Engine | Settings |
+|--------|----------|
+| Chatterbox | exaggeration=0.15, cfg_weight=0.9, temperature=0.3 |
+| OpenAudio | temperature=0.3, top_p=0.7 |
+| XTTS | Default (optimized internally) |
+| Kokoro | speed=1.0 (preset voices only) |
+
+## API Endpoints
+
+### Health Check
 ```bash
-# Basic TTS (default voice)
-curl -X POST http://mac2:8766/tts \
+curl http://localhost:5050/api/health
+```
+
+### List Voices
+```bash
+curl http://localhost:5050/api/voices
+```
+
+### Language Info
+```bash
+curl http://localhost:5050/api/languages
+```
+
+### Direct TTS
+```bash
+curl -X POST http://localhost:5050/api/tts \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "language": "en"}' \
+  -d '{"text": "Hello world", "engine": "kokoro", "voice": "af_heart"}' \
   --output speech.wav
-
-# Voice cloning (provide reference audio)
-curl -X POST http://mac2:8766/tts \
-  -F "text=Hello world" \
-  -F "language=en" \
-  -F "speaker_wav=@reference_voice.wav" \
-  --output cloned_speech.wav
 ```
 
-### Supported Languages
-`en`, `de`, `fr`, `es`, `it`, `pt`, `pl`, `tr`, `ru`, `nl`, `cs`, `ar`, `zh-cn`, `ja`, `ko`, `hu`
-
----
-
-## 3. Chatterbox Server - Port 8767
-
-**Location:** `~/chatterbox-server/`
-**Purpose:** Expressive emotional speech synthesis
-
-### Usage
-
+### Compare Engines
 ```bash
-# Basic TTS
-curl -X POST http://mac2:8767/tts \
+curl -X POST http://localhost:5050/api/compare \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hello world"}' \
-  --output speech.wav
-
-# With exaggeration (0.0 - 1.0, higher = more expressive)
-curl -X POST http://mac2:8767/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "This is exciting!", "exaggeration": 0.7}' \
-  --output expressive.wav
-
-# Voice cloning
-curl -X POST http://mac2:8767/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello", "audio_prompt_path": "/path/to/reference.wav"}' \
-  --output cloned.wav
+  -d '{"text": "Hello world", "language": "en"}'
 ```
 
----
+## Direct Server Access
 
-## 4. MLX Server - Port 8768
+Each TTS engine runs on its own port:
 
-**Location:** `~/mlx_server.py`
-**Purpose:** Apple Silicon optimized model inference
+| Engine | Port | Health Endpoint |
+|--------|------|-----------------|
+| Whisper STT | 8765 | /health |
+| XTTS | 8766 | /health |
+| Chatterbox | 8767 | /health |
+| MLX Server | 8768 | / |
+| Kokoro | 8769 | / |
+| OpenAudio | 8770 | /v1/health |
 
-### Usage
+## Language Support
 
-```bash
-# Check status
-curl http://mac2:8768/
+Languages supported by ALL cloning engines: English (en)
 
-# Model-specific endpoints vary
-curl http://mac2:8768/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Your prompt here"}'
+Full language matrix:
+
+| Language | XTTS | Chatterbox | Kokoro | OpenAudio |
+|----------|------|------------|--------|-----------|
+| English | Yes | Yes | Yes | Yes |
+| German | Yes | - | - | Yes |
+| French | Yes | - | - | Yes |
+| Spanish | Yes | - | - | Yes |
+| Italian | Yes | - | - | Yes |
+| Portuguese | Yes | - | - | Yes |
+| Chinese | Yes | - | - | Yes |
+| Japanese | Yes | - | - | Yes |
+| Korean | Yes | - | - | Yes |
+| Russian | Yes | - | - | Yes |
+
+## Voice Cloning Tips
+
+1. Use 10-30 seconds of clear speech
+2. Avoid background noise
+3. Natural speaking with varied intonation
+4. WAV or MP3 format, any sample rate
+5. Use "Best Clone" preset for faithful reproduction
+
+## Infrastructure
+
+- Server: Mac Studio M2 Ultra
+- RAM: 512GB
+- GPU Cores: 96
+- Network: WireGuard VPN (10.200.0.12)
+- Local IP: 192.168.2.147
+
+## Files
+
+```
+openvoice/
+  app.py              # Flask application
+  templates/
+    index.html        # Home page
+    talk.html         # TTS interface
+    compare.html      # Engine comparison
+    clone.html        # Voice cloning
+  README.md           # This file
 ```
 
----
+## Related Documentation
 
-## 5. Kokoro Server - Port 8769
+- [Ollama LLM Guide](docs/ollama-guide.md) - Using LLM models
+- [TTS Server Guide](docs/tts-guide.md) - Using TTS/STT services
 
-**Location:** `~/kokoro-server/`
-**Model:** Kokoro-82M (MLX-native, Apple Silicon optimized)
-**Purpose:** Fast, high-quality TTS with 11 preset voices
+## License
 
-### Available Voices
-
-| Voice ID | Description |
-|----------|-------------|
-| af_heart | Female, warm |
-| af_nova | Female |
-| af_bella | Female |
-| af_sarah | Female |
-| af_nicole | Female |
-| bf_emma | British female |
-| bf_isabella | British female |
-| am_adam | Male |
-| am_michael | Male |
-| bm_george | British male |
-| bm_lewis | British male |
-
-### Usage
-
-```bash
-# Check status and list voices
-curl http://mac2:8769/
-
-# List all voices
-curl http://mac2:8769/voices
-
-# Basic TTS (default voice: af_heart)
-curl -X POST http://mac2:8769/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world"}' \
-  --output speech.wav
-
-# TTS with specific voice
-curl -X POST http://mac2:8769/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "voice": "am_adam"}' \
-  --output speech.wav
-
-# TTS with speed adjustment (0.5 - 2.0)
-curl -X POST http://mac2:8769/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "voice": "af_bella", "speed": 1.2}' \
-  --output speech.wav
-
-# Save to specific path
-curl -X POST http://mac2:8769/tts/save \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "voice": "bm_george", "output_path": "/tmp/output.wav"}'
-```
-
-### Response Format
-Returns WAV audio file (mono, 24kHz)
-
----
-
-## 6. OpenAudio Server (S1-mini) - Port 8770
-
-**Location:** `~/fish-speech-repo/`
-**Model:** OpenAudio S1-mini (0.5B parameters)
-**Purpose:** State-of-the-art TTS with 50+ emotions, multilingual support
-
-### Features
-- 50+ emotional markers
-- 14 languages supported
-- Voice cloning from 10-30 second samples
-- RLHF-optimized for natural speech
-
-### Emotional Markers
-Use these in your text to control emotion:
-- `(angry)` - Angry tone
-- `(sad)` - Sad tone
-- `(excited)` - Excited tone
-- `(whisper)` - Whispered speech
-- `(laugh)` - Laughing
-- `(cry)` - Crying
-- `(sigh)` - Sighing
-- `(nervous)` - Nervous tone
-- `(fearful)` - Fearful tone
-- `(surprised)` - Surprised tone
-- `(cheerful)` - Cheerful tone
-- `(serious)` - Serious tone
-
-### Usage
-
-```bash
-# Health check
-curl http://mac2:8770/v1/health
-
-# Basic TTS
-curl -X POST http://mac2:8770/v1/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "format": "wav"}' \
-  --output speech.wav
-
-# TTS with emotion
-curl -X POST http://mac2:8770/v1/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "(excited) This is amazing news!", "format": "wav"}' \
-  --output excited.wav
-
-# TTS with whisper
-curl -X POST http://mac2:8770/v1/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "(whisper) This is a secret.", "format": "wav"}' \
-  --output whisper.wav
-
-# Voice cloning (requires reference audio in references/ folder)
-curl -X POST http://mac2:8770/v1/tts \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Hello world", "reference_id": "my_voice", "format": "wav"}' \
-  --output cloned.wav
-```
-
-### Supported Languages
-English, Chinese, Japanese, Korean, French, German, Spanish, Portuguese, Italian, Russian, Arabic, Dutch, Polish, Thai
-
-### Output Formats
-- `wav` - WAV audio (default)
-- `mp3` - MP3 audio
-- `flac` - FLAC audio
-
----
-
-## Quick Start Examples
-
-### Python Client Example
-
-```python
-import requests
-
-# Kokoro TTS
-def kokoro_tts(text, voice="af_heart"):
-    response = requests.post(
-        "http://mac2:8769/tts",
-        json={"text": text, "voice": voice}
-    )
-    with open("output.wav", "wb") as f:
-        f.write(response.content)
-
-# OpenAudio TTS with emotion
-def openaudio_tts(text, emotion=None):
-    if emotion:
-        text = f"({emotion}) {text}"
-    response = requests.post(
-        "http://mac2:8770/v1/tts",
-        json={"text": text, "format": "wav"}
-    )
-    with open("output.wav", "wb") as f:
-        f.write(response.content)
-
-# Whisper STT
-def transcribe(audio_path):
-    with open(audio_path, "rb") as f:
-        response = requests.post(
-            "http://mac2:8765/transcribe",
-            files={"file": f}
-        )
-    return response.json()["text"]
-
-# Usage
-kokoro_tts("Hello from Kokoro!", voice="am_adam")
-openaudio_tts("This is exciting!", emotion="excited")
-text = transcribe("recording.wav")
-```
-
----
-
-## Service Management
-
-### Start/Stop Services
-
-```bash
-# List all LaunchAgents
-launchctl list | grep etl-kontor
-
-# Start a service
-launchctl load ~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist
-
-# Stop a service
-launchctl unload ~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist
-
-# Check service status
-launchctl print gui/$(id -u)/com.etl-kontor.kokoro-server
-```
-
-### LaunchAgent Locations
-- Kokoro: `~/Library/LaunchAgents/com.etl-kontor.kokoro-server.plist`
-- OpenAudio: `~/Library/LaunchAgents/com.etl-kontor.openaudio-server.plist`
-- XTTS: `~/Library/LaunchAgents/com.etl-kontor.xtts-server.plist`
-- Chatterbox: `~/Library/LaunchAgents/com.etl-kontor.chatterbox-server.plist`
-- Speech: `~/Library/LaunchAgents/com.etl-kontor.speech-server.plist`
-
-### Check Running Servers
-
-```bash
-# Check which ports are in use
-netstat -an | grep LISTEN | grep -E '876[5-9]|8770'
-
-# Check server processes
-ps aux | grep -E 'server.py|xtts|chatterbox|kokoro|api_server'
-```
-
----
-
-## Network Access
-
-### From Local Network
-```
-http://192.168.2.147:PORT
-```
-
-### Via WireGuard VPN
-```
-http://10.200.0.12:PORT
-```
-
-### Via SSH Tunnel
-```bash
-ssh -L 8769:localhost:8769 mac2
-# Then access: http://localhost:8769
-```
-
----
-
-## Troubleshooting
-
-### Server not responding
-1. Check if process is running: `ps aux | grep server`
-2. Check logs: `tail -f ~/SERVICE_NAME/server.log`
-3. Restart service: `launchctl unload ... && launchctl load ...`
-
-### Out of memory
-1. Check memory usage: `top -l 1 | head -20`
-2. Stop unused servers to free memory
-3. XTTS uses ~8GB, OpenAudio uses ~2GB, Kokoro uses ~500MB
-
-### Audio quality issues
-- Increase sample rate if supported
-- For voice cloning, use clean 10-30 second reference audio
-- Avoid background noise in reference samples
-
----
-
-## Model Comparison
-
-| Model | Speed | Quality | Voice Cloning | Emotions | Languages |
-|-------|-------|---------|---------------|----------|-----------|
-| Kokoro | Very Fast | High | No | No | EN only |
-| XTTS | Slow | High | Yes | Limited | 16 |
-| Chatterbox | Medium | High | Yes | Yes | EN |
-| OpenAudio | Medium | Excellent | Yes | 50+ | 14 |
-
-**Recommendations:**
-- **Fast responses:** Kokoro (8769)
-- **Voice cloning:** XTTS (8766) or OpenAudio (8770)
-- **Emotional speech:** OpenAudio (8770) or Chatterbox (8767)
-- **Multilingual:** XTTS (8766) or OpenAudio (8770)
+MIT
