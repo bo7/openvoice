@@ -13,7 +13,7 @@ This guide explains how to use the Text-to-Speech and Speech-to-Text services av
 |----------|-------|
 | Host | mac2 / 10.200.0.12 |
 | Local IP | 192.168.2.147 |
-| Hardware | Mac Studio M2 Ultra, 512GB RAM, 96 GPU cores |
+| Hardware | Mac Studio M3 Ultra, 512GB RAM, 80 GPU cores |
 
 ## Available Services
 

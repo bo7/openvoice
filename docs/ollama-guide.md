@@ -14,7 +14,7 @@ This guide explains how to use the Ollama LLM service available on the internal 
 | Host | mac1 / 10.200.0.11 |
 | Port | 11434 |
 | Base URL | http://10.200.0.11:11434 |
-| Hardware | Mac Studio M2 Ultra, 192GB RAM |
+| Hardware | Mac Studio M3 Ultra, 512GB RAM |
 
 ## Available Models
 

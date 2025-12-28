@@ -1,6 +1,6 @@
 # OpenVoice Hub
 
-Multi-Engine Text-to-Speech System running on Mac Studio M2 Ultra.
+Multi-Engine Text-to-Speech System running on Mac Studio M3 Ultra.
 
 ## Features
 
@@ -139,7 +139,7 @@ Full language matrix:
 
 ## Infrastructure
 
-- Server: Mac Studio M2 Ultra
+- Server: Mac Studio M3 Ultra
 - RAM: 512GB
 - GPU Cores: 96
 - Network: WireGuard VPN (10.200.0.12)
